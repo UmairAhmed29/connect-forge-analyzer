@@ -4,32 +4,35 @@ import { useMemo, useState } from 'react';
 import { analyze, toMarkdown, readiness, ICON, LABEL, ORDER } from '@/lib/core.js';
 import type { Report, Status } from '@/lib/core.js';
 import MAP from '@/lib/module-map.json';
+import { DEMO_CONFLUENCE, DEMO_JIRA } from './demo-descriptors';
 
 const STATUS_VAR: Record<Status, string> = {
   direct: 'var(--ok)', caveat: 'var(--caveat)', preview: 'var(--preview)',
   redesign: 'var(--redesign)', none: 'var(--blocker)', unknown: 'var(--muted)',
 };
 
-const STATUSES = ORDER;
-const ICONS = ICON;
-const LABELS = LABEL;
-
 function Gauge({ score }: { score: number }) {
   const color = score >= 80 ? 'var(--ok)' : score >= 55 ? 'var(--caveat)' : 'var(--blocker)';
-  const r = 52, c = 2 * Math.PI * r;
+  const r = 58, c = 2 * Math.PI * r;
   return (
-    <div className="relative shrink-0" style={{ width: 132, height: 132 }}>
-      <svg width="132" height="132" viewBox="0 0 132 132" className="-rotate-90">
-        <circle cx="66" cy="66" r={r} fill="none" stroke="var(--line)" strokeWidth="11" />
+    <div className="relative shrink-0" style={{ width: 148, height: 148 }}>
+      <svg width="148" height="148" viewBox="0 0 148 148" className="-rotate-90">
+        <defs>
+          <filter id="gGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="4" result="b" />
+            <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
+        <circle cx="74" cy="74" r={r} fill="none" stroke="var(--line)" strokeWidth="10" />
         <circle
-          cx="66" cy="66" r={r} fill="none" stroke={color} strokeWidth="11" strokeLinecap="round"
-          strokeDasharray={c} strokeDashoffset={c - (c * score) / 100}
-          style={{ transition: 'stroke-dashoffset .8s cubic-bezier(.2,.7,.3,1)' }}
+          cx="74" cy="74" r={r} fill="none" stroke={color} strokeWidth="10" strokeLinecap="round"
+          strokeDasharray={c} strokeDashoffset={c - (c * score) / 100} filter="url(#gGlow)"
+          style={{ transition: 'stroke-dashoffset .9s cubic-bezier(.2,.7,.3,1)' }}
         />
       </svg>
       <div className="absolute inset-0 grid place-content-center text-center">
-        <div className="text-4xl font-bold tabular-nums leading-none" style={{ color }}>{score}</div>
-        <div className="text-[11px] uppercase tracking-wider mt-1" style={{ color: 'var(--muted)' }}>readiness</div>
+        <div className="text-[2.75rem] font-bold tabular-nums leading-none tracking-tight" style={{ color }}>{score}</div>
+        <div className="text-[10.5px] uppercase tracking-[0.14em] mt-1.5" style={{ color: 'var(--muted)' }}>readiness</div>
       </div>
     </div>
   );
@@ -38,9 +41,9 @@ function Gauge({ score }: { score: number }) {
 function Stat({ label, value, sub, accent }: { label: string; value: string | number; sub?: string; accent?: string }) {
   return (
     <div className="card p-4">
-      <div className="text-[11px] uppercase tracking-wider" style={{ color: 'var(--muted)' }}>{label}</div>
-      <div className="text-2xl font-semibold tabular-nums mt-1" style={{ color: accent ?? 'inherit' }}>{value}</div>
-      {sub && <div className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>{sub}</div>}
+      <div className="text-[10.5px] uppercase tracking-[0.12em]" style={{ color: 'var(--muted)' }}>{label}</div>
+      <div className="text-[1.65rem] font-semibold tabular-nums mt-1.5 tracking-tight" style={{ color: accent ?? 'var(--text)' }}>{value}</div>
+      {sub && <div className="text-xs mt-1" style={{ color: 'var(--muted)' }}>{sub}</div>}
     </div>
   );
 }
@@ -52,15 +55,16 @@ export default function Analyzer() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [report, setReport] = useState<Report | null>(null);
+  const [demo, setDemo] = useState(false);
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<Status | 'all'>('all');
 
   const verdict = useMemo(() => (report ? readiness(report) : null), [report]);
 
-  function run(descriptor: unknown) {
+  function run(descriptor: unknown, isDemo = false) {
     try {
-      const r = analyze(MAP, descriptor);
-      setReport(r);
+      setReport(analyze(MAP, descriptor));
+      setDemo(isDemo);
       setError('');
       queueMicrotask(() => document.getElementById('results')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     } catch (e) {
@@ -112,7 +116,7 @@ export default function Analyzer() {
     return [...report.findings]
       .filter((f) => filter === 'all' || f.status === filter)
       .filter((f) => !needle || f.module.toLowerCase().includes(needle) || (f.key || '').toLowerCase().includes(needle) || (f.forge || '').toLowerCase().includes(needle))
-      .sort((a, b) => STATUSES.indexOf(a.status) - STATUSES.indexOf(b.status));
+      .sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status));
   }, [report, q, filter]);
 
   const blockers = report?.findings.filter((f) => f.status === 'none' || f.status === 'redesign') ?? [];
@@ -120,98 +124,119 @@ export default function Analyzer() {
 
   return (
     <>
-      {/* ---------- input ---------- */}
-      <section className="card p-5 sm:p-6">
-        <div className="flex gap-1 p-1 rounded-lg w-fit mb-4" style={{ background: 'var(--bg)' }}>
-          {(['url', 'paste'] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => { setMode(m); setError(''); }}
-              className="px-3.5 py-1.5 rounded-md text-sm font-medium transition-colors"
-              style={mode === m
-                ? { background: 'var(--surface)', color: 'var(--text)', boxShadow: '0 1px 2px rgba(0,0,0,.08)' }
-                : { color: 'var(--muted)' }}
-            >
-              {m === 'url' ? 'From URL' : 'Paste JSON'}
+      {/* ------------------------- input ------------------------- */}
+      <section className="card card-glow p-5 sm:p-7">
+        <div className="flex flex-wrap items-center gap-3 justify-between mb-5">
+          <div className="inline-flex gap-1 p-1 rounded-xl" style={{ background: 'var(--bg)', border: '1px solid var(--line-soft)' }}>
+            {(['url', 'paste'] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => { setMode(m); setError(''); }}
+                className="px-4 py-1.5 rounded-lg text-[13.5px] font-medium transition-colors"
+                style={mode === m
+                  ? { background: 'var(--surface-2)', color: 'var(--text)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,.06)' }
+                  : { color: 'var(--muted)' }}
+              >
+                {m === 'url' ? 'From URL' : 'Paste JSON'}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2 text-[13px]">
+            <span style={{ color: 'var(--muted)' }}>No descriptor handy?</span>
+            <button onClick={() => run(DEMO_CONFLUENCE, true)} className="btn-ghost px-3 py-1.5 rounded-lg text-[13px] font-medium">
+              Confluence example
             </button>
-          ))}
+            <button onClick={() => run(DEMO_JIRA, true)} className="btn-ghost px-3 py-1.5 rounded-lg text-[13px] font-medium">
+              Jira example
+            </button>
+          </div>
         </div>
 
         {mode === 'url' ? (
           <div>
-            <label htmlFor="u" className="block text-sm font-semibold mb-2">Descriptor URL</label>
-            <div className="flex flex-col sm:flex-row gap-2">
+            <label htmlFor="u" className="block text-[13px] font-semibold mb-2.5" style={{ color: 'var(--text-dim)' }}>
+              Descriptor URL
+            </label>
+            <div className="flex flex-col sm:flex-row gap-2.5">
               <input
                 id="u" value={url} onChange={(e) => setUrl(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && fromUrl()}
                 placeholder="https://your-app.example.com/atlassian-connect.json"
                 spellCheck={false}
-                className="flex-1 px-3.5 py-2.5 rounded-lg mono outline-none"
-                style={{ background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--text)' }}
+                className="field flex-1 px-4 py-3 rounded-xl mono text-[13px]"
               />
-              <button
-                onClick={fromUrl} disabled={busy}
-                className="px-5 py-2.5 rounded-lg font-semibold text-white disabled:opacity-50 whitespace-nowrap"
-                style={{ background: 'var(--brand)' }}
-              >
+              <button onClick={fromUrl} disabled={busy} className="btn-primary px-6 py-3 rounded-xl font-semibold text-[14px] whitespace-nowrap">
                 {busy ? 'Fetching…' : 'Analyze'}
               </button>
             </div>
-            <p className="text-xs mt-2" style={{ color: 'var(--muted)' }}>
-              Your descriptor is fetched server-side to work around CORS, then analysed in your browser. It is never stored.
+            <p className="text-[12.5px] mt-2.5" style={{ color: 'var(--muted)' }}>
+              Fetched server-side to get around CORS, then analysed in your browser. Never stored.
             </p>
           </div>
         ) : (
           <div>
-            <label htmlFor="p" className="block text-sm font-semibold mb-2">atlassian-connect.json</label>
+            <label htmlFor="p" className="block text-[13px] font-semibold mb-2.5" style={{ color: 'var(--text-dim)' }}>
+              atlassian-connect.json
+            </label>
             <textarea
               id="p" value={raw} onChange={(e) => setRaw(e.target.value)} spellCheck={false}
               placeholder={'{ "key": "com.example.app", "name": "My App", "modules": { … } }'}
-              className="w-full min-h-44 px-3.5 py-3 rounded-lg mono outline-none resize-y"
-              style={{ background: 'var(--bg)', border: '1px solid var(--line)', color: 'var(--text)' }}
+              className="field w-full min-h-48 px-4 py-3.5 rounded-xl mono text-[13px] resize-y"
             />
-            <button onClick={fromPaste} className="mt-3 px-5 py-2.5 rounded-lg font-semibold text-white" style={{ background: 'var(--brand)' }}>
+            <button onClick={fromPaste} className="btn-primary mt-3 px-6 py-3 rounded-xl font-semibold text-[14px]">
               Analyze
             </button>
-            <p className="text-xs mt-2" style={{ color: 'var(--muted)' }}>Analysed entirely in your browser. Nothing is uploaded.</p>
+            <p className="text-[12.5px] mt-2.5" style={{ color: 'var(--muted)' }}>
+              Analysed entirely in your browser. Nothing leaves the page.
+            </p>
           </div>
         )}
 
         {error && (
-          <div className="mt-4 px-3.5 py-2.5 rounded-lg text-sm" style={{ background: 'color-mix(in srgb, var(--blocker) 10%, transparent)', color: 'var(--blocker)' }}>
+          <div className="mt-4 px-4 py-3 rounded-xl text-[13.5px]"
+            style={{ background: 'rgba(255,92,92,.10)', border: '1px solid rgba(255,92,92,.25)', color: 'var(--blocker)' }}>
             {error}
           </div>
         )}
       </section>
 
-      {/* ---------- results ---------- */}
+      {/* ------------------------- results ------------------------- */}
       {report && verdict && (
-        <section id="results" className="mt-8 rise">
-          <div className="card p-5 sm:p-7">
-            <div className="flex flex-col sm:flex-row gap-6 sm:items-center">
+        <section id="results" className="mt-6 rise">
+          {demo && (
+            <div className="mb-3 px-4 py-2.5 rounded-xl text-[13px] inline-flex items-center gap-2"
+              style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--text-dim)' }}>
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: 'var(--caveat)' }} />
+              Example descriptor — swap in your own above for a real result.
+            </div>
+          )}
+
+          <div className="card card-glow p-6 sm:p-8">
+            <div className="flex flex-col sm:flex-row gap-7 sm:items-center">
               <Gauge score={verdict.score} />
-              <div className="min-w-0">
-                <div className="text-2xl font-bold">{verdict.verdict}</div>
-                <div className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
+              <div className="min-w-0 flex-1">
+                <div className="text-[1.75rem] font-bold tracking-tight">{verdict.verdict}</div>
+                <div className="text-[13.5px] mt-1.5 mono" style={{ color: 'var(--muted)' }}>
                   {report.app.name || '(unnamed app)'} · {report.app.products.join(', ')}
                 </div>
-                <p className="mt-3 text-sm max-w-xl">{verdict.note}</p>
+                <p className="mt-4 text-[15px] leading-relaxed max-w-xl" style={{ color: 'var(--text-dim)' }}>{verdict.note}</p>
               </div>
             </div>
 
-            <div className="mt-6">
-              <div className="flex h-2.5 rounded-full overflow-hidden" style={{ background: 'var(--line)' }}>
-                {STATUSES.filter((s) => report.summary[s]).map((s: Status) => (
-                  <div key={s} title={`${report.summary[s]} ${LABELS[s]}`}
+            <div className="mt-8">
+              <div className="flex h-2 rounded-full overflow-hidden gap-[2px]">
+                {ORDER.filter((s) => report.summary[s]).map((s) => (
+                  <div key={s} title={`${report.summary[s]} ${LABEL[s]}`} className="first:rounded-l-full last:rounded-r-full"
                     style={{ width: `${((report.summary[s] || 0) / total) * 100}%`, background: STATUS_VAR[s] }} />
                 ))}
               </div>
-              <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 text-xs">
-                {STATUSES.filter((s) => report.summary[s]).map((s: Status) => (
-                  <span key={s} className="inline-flex items-center gap-1.5">
-                    <i className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: STATUS_VAR[s] }} />
+              <div className="flex flex-wrap gap-x-5 gap-y-2 mt-4 text-[12.5px]">
+                {ORDER.filter((s) => report.summary[s]).map((s) => (
+                  <span key={s} className="inline-flex items-center gap-2">
+                    <i className="w-2 h-2 rounded-full inline-block" style={{ background: STATUS_VAR[s] }} />
                     <b className="tabular-nums">{report.summary[s]}</b>
-                    <span style={{ color: 'var(--muted)' }}>{LABELS[s]}</span>
+                    <span style={{ color: 'var(--muted)' }}>{LABEL[s]}</span>
                   </span>
                 ))}
               </div>
@@ -220,74 +245,74 @@ export default function Analyzer() {
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
             <Stat label="Modules" value={report.findings.length} />
-            <Stat label="Blockers" value={blockers.length} accent={blockers.length ? 'var(--blocker)' : undefined} sub={blockers.length ? 'need a decision' : 'none found'} />
-            <Stat label="Effort" value={`${report.effort.totalDays}d`} sub={`~${report.effort.totalWeeks} weeks`} />
+            <Stat label="Blockers" value={blockers.length}
+              accent={blockers.length ? 'var(--blocker)' : 'var(--ok)'}
+              sub={blockers.length ? 'need a decision' : 'none found'} />
+            <Stat label="Effort" value={`${report.effort.totalDays}d`} sub={`≈ ${report.effort.totalWeeks} weeks`} />
             <Stat label="Overhead" value={`${report.effort.baseOverheadDays}d`} sub="manifest, auth, build" />
           </div>
 
           {blockers.length > 0 && (
             <>
-              <h2 className="text-lg font-bold mt-8 mb-3">Blockers — resolve before scoping</h2>
+              <h2 className="text-[17px] font-bold mt-10 mb-3.5">Blockers — resolve before scoping</h2>
               <div className="grid gap-2.5">
                 {blockers.map((f, i) => (
-                  <div key={i} className="card p-4" style={{ borderLeft: '3px solid var(--blocker)' }}>
-                    <div className="flex items-baseline gap-2 flex-wrap">
-                      <span className="mono font-semibold">{f.module}</span>
-                      {f.key && <span className="mono text-xs" style={{ color: 'var(--muted)' }}>{f.key}</span>}
-                      <span className="ml-auto text-xs tabular-nums" style={{ color: 'var(--muted)' }}>{f.effortDays}d</span>
+                  <div key={i} className="card p-5" style={{ borderLeft: '2px solid var(--blocker)' }}>
+                    <div className="flex items-baseline gap-2.5 flex-wrap">
+                      <span className="mono text-[13.5px] font-semibold">{f.module}</span>
+                      {f.key && <span className="mono text-[12px]" style={{ color: 'var(--muted)' }}>{f.key}</span>}
+                      <span className="ml-auto text-[12px] tabular-nums px-2 py-0.5 rounded-md"
+                        style={{ background: 'var(--surface-2)', color: 'var(--muted)' }}>{f.effortDays}d</span>
                     </div>
-                    {f.note && <p className="text-sm mt-1.5" style={{ color: 'var(--muted)' }}>{f.note}</p>}
+                    {f.note && <p className="text-[13.5px] mt-2 leading-relaxed" style={{ color: 'var(--text-dim)' }}>{f.note}</p>}
                   </div>
                 ))}
               </div>
             </>
           )}
 
-          <h2 className="text-lg font-bold mt-8 mb-3">Module-by-module</h2>
+          <h2 className="text-[17px] font-bold mt-10 mb-3.5">Module-by-module</h2>
           <div className="flex flex-wrap gap-2 mb-3">
-            <input
-              value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter modules…"
-              className="px-3 py-1.5 rounded-lg text-sm outline-none"
-              style={{ background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)' }}
-            />
-            {(['all', ...STATUSES.filter((s) => report.summary[s])] as (Status | 'all')[]).map((s) => (
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter…"
+              className="field px-3.5 py-2 rounded-lg text-[13px] w-40" />
+            {(['all', ...ORDER.filter((s) => report.summary[s])] as (Status | 'all')[]).map((s) => (
               <button key={s} onClick={() => setFilter(s)}
-                className="px-3 py-1.5 rounded-lg text-sm"
+                className="px-3.5 py-2 rounded-lg text-[13px] font-medium transition-colors"
                 style={filter === s
-                  ? { background: 'var(--brand)', color: '#fff' }
-                  : { background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--muted)' }}>
-                {s === 'all' ? `All ${report.findings.length}` : `${ICONS[s]} ${report.summary[s]}`}
+                  ? { background: 'var(--brand)', color: '#fff', border: '1px solid transparent' }
+                  : { background: 'var(--surface-2)', border: '1px solid var(--line)', color: 'var(--muted)' }}>
+                {s === 'all' ? `All ${report.findings.length}` : `${ICON[s]} ${report.summary[s]}`}
               </button>
             ))}
           </div>
 
           <div className="card tablewrap">
-            <table className="w-full text-sm border-collapse">
+            <table className="w-full text-[13.5px] border-collapse">
               <thead>
                 <tr>
                   {['Connect module', 'Key', 'Forge equivalent', 'Status', 'Days'].map((h) => (
-                    <th key={h} className="text-left px-4 py-2.5 text-[11px] uppercase tracking-wider font-semibold whitespace-nowrap"
-                      style={{ color: 'var(--muted)', borderBottom: '1px solid var(--line)', background: 'var(--bg)' }}>{h}</th>
+                    <th key={h} className="text-left px-4 py-3 text-[10.5px] uppercase tracking-[0.12em] font-semibold whitespace-nowrap"
+                      style={{ color: 'var(--muted)', borderBottom: '1px solid var(--line)' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {visible.map((f, i) => (
                   <tr key={i}>
-                    <td className="px-4 py-2.5 mono whitespace-nowrap" style={{ borderBottom: '1px solid var(--line)' }}>{f.module}</td>
-                    <td className="px-4 py-2.5 mono whitespace-nowrap" style={{ borderBottom: '1px solid var(--line)', color: 'var(--muted)' }}>{f.key || '—'}</td>
-                    <td className="px-4 py-2.5 mono whitespace-nowrap" style={{ borderBottom: '1px solid var(--line)' }}>{f.forge || '—'}</td>
-                    <td className="px-4 py-2.5 whitespace-nowrap" style={{ borderBottom: '1px solid var(--line)' }}>
-                      <span className="inline-flex items-center gap-1.5">
-                        <i className="w-2 h-2 rounded-full inline-block" style={{ background: STATUS_VAR[f.status] }} />
-                        {LABELS[f.status]}
+                    <td className="px-4 py-3 mono whitespace-nowrap" style={{ borderBottom: '1px solid var(--line-soft)' }}>{f.module}</td>
+                    <td className="px-4 py-3 mono whitespace-nowrap" style={{ borderBottom: '1px solid var(--line-soft)', color: 'var(--muted)' }}>{f.key || '—'}</td>
+                    <td className="px-4 py-3 mono whitespace-nowrap" style={{ borderBottom: '1px solid var(--line-soft)', color: 'var(--text-dim)' }}>{f.forge || '—'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap" style={{ borderBottom: '1px solid var(--line-soft)' }}>
+                      <span className="inline-flex items-center gap-2">
+                        <i className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: STATUS_VAR[f.status] }} />
+                        {LABEL[f.status]}
                       </span>
                     </td>
-                    <td className="px-4 py-2.5 tabular-nums" style={{ borderBottom: '1px solid var(--line)' }}>{f.effortDays}</td>
+                    <td className="px-4 py-3 tabular-nums" style={{ borderBottom: '1px solid var(--line-soft)', color: 'var(--muted)' }}>{f.effortDays}</td>
                   </tr>
                 ))}
                 {visible.length === 0 && (
-                  <tr><td colSpan={5} className="px-4 py-6 text-center text-sm" style={{ color: 'var(--muted)' }}>No modules match that filter.</td></tr>
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-[13.5px]" style={{ color: 'var(--muted)' }}>No modules match that filter.</td></tr>
                 )}
               </tbody>
             </table>
@@ -295,34 +320,33 @@ export default function Analyzer() {
 
           {report.globalRisks.length > 0 && (
             <>
-              <h2 className="text-lg font-bold mt-8 mb-3">Platform-level risks</h2>
+              <h2 className="text-[17px] font-bold mt-10 mb-3.5">Platform-level risks</h2>
               <div className="grid sm:grid-cols-2 gap-2.5">
                 {report.globalRisks.map((g) => (
-                  <div key={g.id} className="card p-4" style={{ borderLeft: `3px solid ${g.severity === 'high' ? 'var(--blocker)' : 'var(--caveat)'}` }}>
-                    <div className="font-semibold text-sm">{g.title}</div>
-                    <p className="text-sm mt-1.5" style={{ color: 'var(--muted)' }}>{g.detail}</p>
+                  <div key={g.id} className="card p-5"
+                    style={{ borderLeft: `2px solid ${g.severity === 'high' ? 'var(--blocker)' : 'var(--caveat)'}` }}>
+                    <div className="font-semibold text-[14px]">{g.title}</div>
+                    <p className="text-[13.5px] mt-2 leading-relaxed" style={{ color: 'var(--text-dim)' }}>{g.detail}</p>
                   </div>
                 ))}
               </div>
             </>
           )}
 
-          <div className="card p-5 sm:p-6 mt-8 flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="card card-glow p-6 sm:p-7 mt-10 flex flex-col sm:flex-row sm:items-center gap-5">
             <div className="flex-1">
-              <div className="font-semibold">Want this scoped properly?</div>
-              <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
+              <div className="font-semibold text-[16px]">Want this scoped properly?</div>
+              <p className="text-[14px] mt-1.5 leading-relaxed max-w-lg" style={{ color: 'var(--text-dim)' }}>
                 This report reads your descriptor. A full assessment reads your code — where the real
                 effort hides, and where an estimate becomes a plan.
               </p>
             </div>
-            <div className="flex gap-2">
-              <button onClick={download} className="px-4 py-2.5 rounded-lg font-semibold text-sm"
-                style={{ background: 'var(--surface)', border: '1px solid var(--line)', color: 'var(--text)' }}>
+            <div className="flex gap-2.5 shrink-0">
+              <button onClick={download} className="btn-ghost px-4 py-3 rounded-xl font-semibold text-[13.5px]">
                 Download report
               </button>
               <a href={`mailto:umairahmed5544@gmail.com?subject=${encodeURIComponent(`Forge migration assessment — ${report.app.name || report.app.key || 'my app'}`)}`}
-                className="px-4 py-2.5 rounded-lg font-semibold text-sm text-white whitespace-nowrap"
-                style={{ background: 'var(--brand)' }}>
+                className="btn-primary px-5 py-3 rounded-xl font-semibold text-[13.5px] whitespace-nowrap inline-flex items-center">
                 Request an assessment
               </a>
             </div>

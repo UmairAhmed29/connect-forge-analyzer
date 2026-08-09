@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { track } from '@vercel/analytics';
 import { analyze, toMarkdown, readiness, ICON, LABEL, ORDER } from '@/lib/core.js';
 import type { Report, Status } from '@/lib/core.js';
 import MAP from '@/lib/module-map.json';
@@ -61,10 +62,18 @@ export default function Analyzer() {
 
   const verdict = useMemo(() => (report ? readiness(report) : null), [report]);
 
-  function run(descriptor: unknown, isDemo = false) {
+  function run(descriptor: unknown, isDemo = false, source: 'url' | 'paste' | 'demo' = 'paste') {
     try {
-      setReport(analyze(MAP, descriptor));
+      const r = analyze(MAP, descriptor);
+      setReport(r);
       setDemo(isDemo);
+      track('analysis_run', {
+        source,
+        modules: r.findings.length,
+        blockers: r.findings.filter((f) => f.status === 'none' || f.status === 'redesign').length,
+        score: readiness(r).score,
+        products: r.app.products.join(','),
+      });
       setError('');
       queueMicrotask(() => document.getElementById('results')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     } catch (e) {
@@ -81,8 +90,9 @@ export default function Analyzer() {
       const res = await fetch(`/api/descriptor?url=${encodeURIComponent(u)}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Request failed.');
-      run(data.descriptor);
+      run(data.descriptor, false, 'url');
     } catch (e) {
+      track('url_fetch_failed', { reason: (e as Error).message.slice(0, 80) });
       setError((e as Error).message);
     } finally {
       setBusy(false);
@@ -97,11 +107,12 @@ export default function Analyzer() {
     if (!d || typeof d !== 'object' || !('modules' in (d as object))) {
       return setError('No "modules" object found — that does not look like a Connect descriptor.');
     }
-    run(d);
+    run(d, false, 'paste');
   }
 
   function download() {
     if (!report) return;
+    track('report_downloaded', { app: report.app.key || 'unknown' });
     const blob = new Blob([toMarkdown(report)], { type: 'text/markdown' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -144,10 +155,10 @@ export default function Analyzer() {
 
           <div className="flex items-center gap-2 text-[13px]">
             <span style={{ color: 'var(--muted)' }}>No descriptor handy?</span>
-            <button onClick={() => run(DEMO_CONFLUENCE, true)} className="btn-ghost px-3 py-1.5 rounded-lg text-[13px] font-medium">
+            <button onClick={() => run(DEMO_CONFLUENCE, true, 'demo')} className="btn-ghost px-3 py-1.5 rounded-lg text-[13px] font-medium">
               Confluence example
             </button>
-            <button onClick={() => run(DEMO_JIRA, true)} className="btn-ghost px-3 py-1.5 rounded-lg text-[13px] font-medium">
+            <button onClick={() => run(DEMO_JIRA, true, 'demo')} className="btn-ghost px-3 py-1.5 rounded-lg text-[13px] font-medium">
               Jira example
             </button>
           </div>
@@ -346,6 +357,7 @@ export default function Analyzer() {
                 Download report
               </button>
               <a href={`mailto:umairahmed5544@gmail.com?subject=${encodeURIComponent(`Forge migration assessment — ${report.app.name || report.app.key || 'my app'}`)}`}
+                onClick={() => track('assessment_requested', { app: report.app.key || 'unknown', blockers: blockers.length, score: verdict.score })}
                 className="btn-primary px-5 py-3 rounded-xl font-semibold text-[13.5px] whitespace-nowrap inline-flex items-center">
                 Request an assessment
               </a>

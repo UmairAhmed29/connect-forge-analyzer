@@ -19,7 +19,7 @@ const CORE = readFileSync(join(root, 'src', 'core.js'), 'utf8')
 const AUTHOR = {
   name: 'Umair Ahmed',
   tagline: 'Independent Atlassian app developer',
-  contact: '', // e.g. 'mailto:you@example.com' or a LinkedIn URL
+  contact: 'mailto:umairahmed5544@gmail.com', // e.g. 'mailto:you@example.com' or a LinkedIn URL
 };
 
 const html = `<meta charset="utf-8">
@@ -274,6 +274,6 @@ const out = html
   .replace('__EX_CONF__', readFileSync(join(root, 'samples', 'confluence-app.json'), 'utf8'))
   .replace('__EX_JIRA__', readFileSync(join(root, 'samples', 'jira-app.json'), 'utf8'));
 
-mkdirSync(join(root, 'web'), { recursive: true });
-writeFileSync(join(root, 'web', 'index.html'), out);
-console.log(`web/index.html written — ${(out.length / 1024).toFixed(0)} KB, self-contained`);
+mkdirSync(join(root, 'docs'), { recursive: true });
+writeFileSync(join(root, 'docs', 'index.html'), out);
+console.log(`docs/index.html written — ${(out.length / 1024).toFixed(0)} KB, self-contained`);

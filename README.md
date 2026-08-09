@@ -20,7 +20,7 @@ Accepts a local file path or a URL to a live `atlassian-connect.json`.
 ## Web version
 
 ```bash
-node build.js        # regenerates web/index.html
+node build.js        # regenerates docs/index.html
 ```
 
 Produces a single ~50 KB self-contained HTML file — no dependencies, no build step, no

@@ -34,14 +34,26 @@ function isBlockedAddress(ip: string): boolean {
   return false;
 }
 
+/** Marks errors that are safe to show a user verbatim. */
+class UserFacingError extends Error {}
+
 async function assertPublicHost(hostname: string) {
   // A literal IP can be checked directly; a name must be resolved first so we
   // reject things like a domain deliberately pointing at 169.254.169.254.
-  const records = await lookup(hostname, { all: true, verbatim: true });
-  if (!records.length) throw new Error('Host could not be resolved.');
+  let records;
+  try {
+    records = await lookup(hostname, { all: true, verbatim: true });
+  } catch {
+    // Node surfaces DNS failures as getaddrinfo ENOTFOUND / EAI_AGAIN / EBUSY.
+    // None of that means anything to someone who simply mistyped their domain.
+    throw new UserFacingError(`We couldn't find the domain "${hostname}". Check the URL and try again.`);
+  }
+  if (!records.length) {
+    throw new UserFacingError(`We couldn't find the domain "${hostname}". Check the URL and try again.`);
+  }
   for (const r of records) {
     if (isBlockedAddress(r.address)) {
-      throw new Error('That host resolves to a private or internal address.');
+      throw new UserFacingError('That host resolves to a private or internal address.');
     }
   }
 }
@@ -111,9 +123,12 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ descriptor: json, fetchedFrom: parsed.toString() });
   } catch (e) {
-    const msg = (e as Error).name === 'AbortError'
-      ? 'The request timed out after 10 seconds.'
-      : `Could not fetch that URL: ${(e as Error).message}`;
+    const err = e as Error;
+    const msg = err.name === 'AbortError'
+      ? 'That server took too long to respond (10s timeout).'
+      : err instanceof UserFacingError
+        ? err.message
+        : "We couldn't reach that URL. Check it's publicly accessible and serving the descriptor directly.";
     return NextResponse.json({ error: msg }, { status: 502 });
   } finally {
     clearTimeout(timer);

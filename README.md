@@ -2,6 +2,9 @@
 
 Paste in an Atlassian Connect descriptor, get a migration readiness report.
 
+**→ https://umairahmed29.github.io/connect-forge-analyzer/**
+
+
 Atlassian ends support for Connect on **31 January 2027**, and Marketplace has blocked
 Connect descriptor updates since **March 2026** — apps still on Connect cannot ship changes
 at all. This tool tells you how far you are from Forge and where the hard parts are.
@@ -33,10 +36,8 @@ stating on the page, because vendors are pasting a file that describes their pro
 lives in exactly one place and the CLI and web version cannot drift apart. Re-run it after
 any change to the map.
 
-### Before publishing
-
-Set `AUTHOR.contact` in `build.js` — without it the page has no call to action and
-generates no leads.
+Live at **https://umairahmed29.github.io/connect-forge-analyzer/**, served from `docs/`
+on `main`. Re-run `node build.js` and push to deploy.
 
 ## What it checks
 

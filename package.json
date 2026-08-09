@@ -1,0 +1,16 @@
+{
+  "name": "connect-forge-analyzer",
+  "version": "1.0.0",
+  "description": "Analyze an Atlassian Connect descriptor for Forge migration readiness",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bin": {
+    "cfa": "./src/cli.js"
+  }
+}

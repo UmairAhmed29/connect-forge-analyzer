@@ -1,0 +1,18 @@
+{
+  "key": "com.example.sprint-reporter",
+  "name": "Sprint Reporter for Jira",
+  "baseUrl": "https://sprint-reporter.example.com",
+  "authentication": { "type": "jwt" },
+  "scopes": ["READ", "WRITE"],
+  "modules": {
+    "jiraDashboardItem": { "key": "sprint-gadget", "name": { "value": "Sprint Gadget" }, "url": "/gadget" },
+    "jiraIssueFields": [{ "key": "story-points", "name": { "value": "Story Points" }, "type": "number" }],
+    "jiraWorkflowPostFunctions": [{ "key": "notify-pf", "name": { "value": "Notify" }, "triggered": { "url": "/pf" } }],
+    "webPanels": [
+      { "key": "left-panel", "location": "atl.jira.view.issue.left.context", "name": { "value": "Details" }, "url": "/panel" },
+      { "key": "right-panel", "location": "atl.jira.view.issue.right.context", "name": { "value": "Glance" }, "url": "/glance" }
+    ],
+    "webItems": [{ "key": "board-tool", "location": "jira.agile.board.tools", "name": { "value": "Report" }, "url": "/report" }],
+    "webhooks": [{ "event": "sprint_closed", "url": "/hooks/sprint" }]
+  }
+}

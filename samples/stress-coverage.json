@@ -1,0 +1,265 @@
+{
+  "key": "stress.test",
+  "name": "Coverage Stress Test",
+  "baseUrl": "https://x.example.com",
+  "modules": {
+    "generalPages": [
+      {
+        "key": "generalPages-1",
+        "url": "/x"
+      }
+    ],
+    "adminPages": [
+      {
+        "key": "adminPages-1",
+        "url": "/x"
+      }
+    ],
+    "configurePage": [
+      {
+        "key": "configurePage-1",
+        "url": "/x"
+      }
+    ],
+    "postInstallPage": [
+      {
+        "key": "postInstallPage-1",
+        "url": "/x"
+      }
+    ],
+    "webItems": [
+      {
+        "key": "webItems-1",
+        "url": "/x"
+      }
+    ],
+    "webPanels": [
+      {
+        "key": "webPanels-1",
+        "url": "/x"
+      }
+    ],
+    "webSections": [
+      {
+        "key": "webSections-1",
+        "url": "/x"
+      }
+    ],
+    "jiraIssueFields": [
+      {
+        "key": "jiraIssueFields-1",
+        "url": "/x"
+      }
+    ],
+    "jiraIssueContents": [
+      {
+        "key": "jiraIssueContents-1",
+        "url": "/x"
+      }
+    ],
+    "jiraIssueContexts": [
+      {
+        "key": "jiraIssueContexts-1",
+        "url": "/x"
+      }
+    ],
+    "jiraIssueGlances": [
+      {
+        "key": "jiraIssueGlances-1",
+        "url": "/x"
+      }
+    ],
+    "jiraIssueTabPanels": [
+      {
+        "key": "jiraIssueTabPanels-1",
+        "url": "/x"
+      }
+    ],
+    "jiraDashboardItem": [
+      {
+        "key": "jiraDashboardItem-1",
+        "url": "/x"
+      }
+    ],
+    "jiraDashboardItems": [
+      {
+        "key": "jiraDashboardItems-1",
+        "url": "/x"
+      }
+    ],
+    "jiraEntityProperties": [
+      {
+        "key": "jiraEntityProperties-1",
+        "url": "/x"
+      }
+    ],
+    "jiraJqlFunctions": [
+      {
+        "key": "jiraJqlFunctions-1",
+        "url": "/x"
+      }
+    ],
+    "jiraProjectPages": [
+      {
+        "key": "jiraProjectPages-1",
+        "url": "/x"
+      }
+    ],
+    "jiraProjectAdminTabPanels": [
+      {
+        "key": "jiraProjectAdminTabPanels-1",
+        "url": "/x"
+      }
+    ],
+    "jiraProjectPermissions": [
+      {
+        "key": "jiraProjectPermissions-1",
+        "url": "/x"
+      }
+    ],
+    "jiraGlobalPermissions": [
+      {
+        "key": "jiraGlobalPermissions-1",
+        "url": "/x"
+      }
+    ],
+    "jiraWorkflowPostFunctions": [
+      {
+        "key": "jiraWorkflowPostFunctions-1",
+        "url": "/x"
+      }
+    ],
+    "jiraWorkflowConditions": [
+      {
+        "key": "jiraWorkflowConditions-1",
+        "url": "/x"
+      }
+    ],
+    "jiraWorkflowValidators": [
+      {
+        "key": "jiraWorkflowValidators-1",
+        "url": "/x"
+      }
+    ],
+    "jiraTimeTrackingProviders": [
+      {
+        "key": "jiraTimeTrackingProviders-1",
+        "url": "/x"
+      }
+    ],
+    "jiraReports": [
+      {
+        "key": "jiraReports-1",
+        "url": "/x"
+      }
+    ],
+    "jiraSearchRequestViews": [
+      {
+        "key": "jiraSearchRequestViews-1",
+        "url": "/x"
+      }
+    ],
+    "jiraProfileTabPanels": [
+      {
+        "key": "jiraProfileTabPanels-1",
+        "url": "/x"
+      }
+    ],
+    "jiraVersionTabPanels": [
+      {
+        "key": "jiraVersionTabPanels-1",
+        "url": "/x"
+      }
+    ],
+    "jiraComponentTabPanels": [
+      {
+        "key": "jiraComponentTabPanels-1",
+        "url": "/x"
+      }
+    ],
+    "jiraBackgroundScripts": [
+      {
+        "key": "jiraBackgroundScripts-1",
+        "url": "/x"
+      }
+    ],
+    "keyboardShortcuts": [
+      {
+        "key": "keyboardShortcuts-1",
+        "url": "/x"
+      }
+    ],
+    "dialogs": [
+      {
+        "key": "dialogs-1",
+        "url": "/x"
+      }
+    ],
+    "webhooks": [
+      {
+        "key": "webhooks-1",
+        "url": "/x"
+      }
+    ],
+    "dynamicContentMacros": [
+      {
+        "key": "dynamicContentMacros-1",
+        "url": "/x"
+      }
+    ],
+    "staticContentMacros": [
+      {
+        "key": "staticContentMacros-1",
+        "url": "/x"
+      }
+    ],
+    "blueprints": [
+      {
+        "key": "blueprints-1",
+        "url": "/x"
+      }
+    ],
+    "customContent": [
+      {
+        "key": "customContent-1",
+        "url": "/x"
+      }
+    ],
+    "contentBylineItems": [
+      {
+        "key": "contentBylineItems-1",
+        "url": "/x"
+      }
+    ],
+    "spaceToolsTabs": [
+      {
+        "key": "spaceToolsTabs-1",
+        "url": "/x"
+      }
+    ],
+    "confluenceContentProperties": [
+      {
+        "key": "confluenceContentProperties-1",
+        "url": "/x"
+      }
+    ],
+    "confluenceThemes": [
+      {
+        "key": "confluenceThemes-1",
+        "url": "/x"
+      }
+    ],
+    "spaceViews": [
+      {
+        "key": "spaceViews-1",
+        "url": "/x"
+      }
+    ],
+    "profilePages": [
+      {
+        "key": "profilePages-1",
+        "url": "/x"
+      }
+    ]
+  }
+}

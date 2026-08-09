@@ -1,0 +1,943 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Connect → Forge Migration Analyzer</title>
+<style>
+  :root {
+    --bg: #f7f8f9; --surface: #ffffff; --border: #dfe1e6; --text: #172b4d;
+    --muted: #626f86; --accent: #0c66e4; --accent-soft: #e9f2ff;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --ok: #216e4e; --warn: #a54800; --bad: #ae2e24;
+    --radius: 8px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1d2125; --surface: #22272b; --border: #3c434a; --text: #dee4ea;
+      --muted: #9fadbc; --accent: #579dff; --accent-soft: #1c2b41;
+      --ok: #7ee2b8; --warn: #f5cd47; --bad: #ff9c8f;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1d2125; --surface: #22272b; --border: #3c434a; --text: #dee4ea;
+    --muted: #9fadbc; --accent: #579dff; --accent-soft: #1c2b41;
+    --ok: #7ee2b8; --warn: #f5cd47; --bad: #ff9c8f;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 40px 20px 80px; }
+  header { margin-bottom: 28px; }
+  h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin: 0; }
+  .deadline {
+    margin-top: 16px; padding: 12px 14px; border-radius: var(--radius);
+    background: var(--accent-soft); border: 1px solid var(--border); font-size: 14px;
+  }
+  .deadline strong { font-variant-numeric: tabular-nums; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px; margin-bottom: 18px;
+  }
+  label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 8px; }
+  textarea {
+    width: 100%; min-height: 190px; resize: vertical; padding: 12px;
+    font: 12.5px/1.5 var(--mono); color: var(--text);
+    background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+  button {
+    font: inherit; font-weight: 600; padding: 8px 16px; border-radius: 6px;
+    border: 1px solid transparent; background: var(--accent); color: #fff; cursor: pointer;
+  }
+  button.ghost { background: transparent; color: var(--accent); border-color: var(--border); font-weight: 500; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .err { color: var(--bad); font-size: 13.5px; margin-top: 10px; }
+
+  .verdict { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  .score { font-size: 40px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
+  .vlabel { font-size: 19px; font-weight: 600; }
+  .effort { margin-top: 10px; color: var(--muted); font-size: 14px; }
+  .bar { height: 6px; border-radius: 3px; background: var(--border); margin-top: 14px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; border-radius: 3px; }
+
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .chip {
+    font-size: 13px; padding: 4px 10px; border-radius: 20px;
+    border: 1px solid var(--border); background: var(--bg);
+  }
+
+  h2 { font-size: 17px; margin: 26px 0 12px; }
+  .blocker { border-left: 3px solid var(--bad); padding: 12px 14px; background: var(--bg); border-radius: 0 6px 6px 0; margin-bottom: 10px; }
+  .blocker h3 { margin: 0 0 6px; font-size: 14px; font-family: var(--mono); font-weight: 600; }
+  .blocker p { margin: 0; font-size: 13.5px; color: var(--muted); }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { background: var(--bg); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  tr:last-child td { border-bottom: 0; }
+  code { font-family: var(--mono); font-size: 12.5px; }
+
+  footer { margin-top: 40px; padding-top: 22px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+  footer a { color: var(--accent); }
+  .caveat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; font-size: 13.5px; color: var(--muted); margin-top: 18px; }
+  .hidden { display: none; }
+</style>
+
+<div class="wrap">
+<header>
+  <h1>Connect → Forge Migration Analyzer</h1>
+  <p class="sub">Paste an Atlassian Connect descriptor. Get a migration readiness report.</p>
+  <div class="deadline">
+    Atlassian ends Connect support on <strong>31 January 2027</strong>. Marketplace has blocked
+    Connect descriptor updates since <strong>March 2026</strong> — apps still on Connect cannot ship
+    changes at all.
+  </div>
+</header>
+
+<div class="card">
+  <label for="src">atlassian-connect.json</label>
+  <textarea id="src" spellcheck="false" placeholder='{ "key": "com.example.app", "name": "My App", "modules": { ... } }'></textarea>
+  <div class="row">
+    <button id="go">Analyze</button>
+    <button class="ghost" id="ex-conf">Load Confluence example</button>
+    <button class="ghost" id="ex-jira">Load Jira example</button>
+    <button class="ghost" id="clear">Clear</button>
+  </div>
+  <div class="err hidden" id="err"></div>
+</div>
+
+<div id="out" class="hidden"></div>
+
+<div class="caveat">
+  <strong>How to read the estimate.</strong> Day counts are a planning heuristic from module
+  counts weighted by documented difficulty, plus a surcharge on UI-bearing modules and fixed
+  overhead for manifest, auth, build and regression work. It is not a quote. This tool reads the
+  descriptor, not your code — it cannot see how complex your frontend actually is, and frontend
+  rework dominates real migrations. Anything marked ⛔ or 🔴 needs a human decision before a date
+  can be committed.
+</div>
+
+<footer>
+  <p>Built by Umair Ahmed · Independent Atlassian app developer</p>
+  <p>An independent tool. Not affiliated with or endorsed by Atlassian. Mapping data transcribed from
+  Atlassian's published Connect/Forge equivalence and limitations documentation, retrieved 2026-08-09.
+  Atlassian revises these tables — verify before relying on this for a paid engagement.</p>
+  <p>Your descriptor is analysed entirely in your browser. Nothing is uploaded.</p>
+</footer>
+</div>
+
+<script>
+const MAP = {
+  "meta": {
+    "source": "https://developer.atlassian.com/platform/adopting-forge-from-connect/connect-forge-equivalences/connect-forge-capabilities-available/",
+    "limitationsSource": "https://developer.atlassian.com/platform/adopting-forge-from-connect/limitations-and-differences/",
+    "retrieved": "2026-08-09",
+    "connectEndOfSupport": "2027-01-31",
+    "connectUpdatesFrozenSince": "2026-03-01",
+    "statusLegend": {
+      "direct": "Straight equivalent exists. Low risk.",
+      "preview": "Forge equivalent exists but is in preview. Medium risk - API may change.",
+      "caveat": "Equivalent exists but with documented behavioural differences. Medium risk.",
+      "redesign": "No like-for-like module. Requires architectural change. High risk.",
+      "none": "No Forge equivalent documented. Blocker."
+    }
+  },
+
+  "aliases": {
+    "jiraDashboardItems": "jiraDashboardItem",
+    "jiraIssueField": "jiraIssueFields",
+    "jiraEntityProperty": "jiraEntityProperties",
+    "adminPage": "adminPages",
+    "generalPage": "generalPages",
+    "webItem": "webItems",
+    "webPanel": "webPanels",
+    "webhook": "webhooks"
+  },
+
+  "absentFromEquivalenceTable": {
+    "_note": "These are real Connect modules that do NOT appear in Atlassian's published Connect/Forge equivalence table. Absence is not proof that no Forge equivalent exists - but in practice it means one is not documented, so each must be verified manually and treated as high risk until confirmed.",
+    "webSections": "Groups web items in Connect. Forge has no section concept - grouping is implicit in the module hierarchy. Expect to restructure navigation.",
+    "jiraReports": "Custom Jira reports. No documented Forge equivalent.",
+    "jiraSearchRequestViews": "Custom rendering of search results (e.g. custom export formats). No documented Forge equivalent.",
+    "jiraProfileTabPanels": "Tabs on the user profile. No documented Forge equivalent; jira:personalSettingsPage (preview) is the closest surface but is not a like-for-like tab.",
+    "jiraVersionTabPanels": "Tabs on the version page. No documented Forge equivalent.",
+    "jiraComponentTabPanels": "Tabs on the component page. No documented Forge equivalent.",
+    "confluenceThemes": "Full Confluence theming. No documented Forge equivalent - this is typically a product-defining capability, so its absence can block a migration outright.",
+    "spaceViews": "Custom space views. No documented Forge equivalent.",
+    "profilePages": "Confluence user profile pages. No documented Forge equivalent."
+  },
+
+  "platform": {
+    "offlineUserImpersonation": { "forge": "Forge Functions / Forge Remotes", "status": "direct" },
+    "dataResidencyRealmPinning": { "forge": "Forge Remote Data Residency - Pinning", "status": "direct" },
+    "dataResidencyRealmMigrations": { "forge": "Forge Remote Data Residency - Migrations", "status": "direct" },
+    "offlineJwtRequests": { "forge": "Forge Remote", "status": "direct", "note": "Remote endpoints must validate Forge Invocation Tokens (FIT) instead of JWT." },
+    "emailAddressApi": { "forge": "Email Address API", "status": "direct" },
+    "internationalisation": { "forge": "Forge Internationalisation", "status": "direct" },
+    "navigator": { "forge": "Forge Router", "status": "direct" },
+    "appMigrationPlatform": { "forge": "Forge App Migration Platform", "status": "direct" },
+    "webhook": { "forge": "trigger", "status": "direct" },
+    "popupSupport": { "forge": "Popup support manifest permission", "status": "caveat", "note": "Requires explicit declaration in manifest." },
+    "websocketSupport": { "forge": "Forge realtime", "status": "preview", "note": "Early access program only." },
+    "lifecycleInstalled": { "forge": "avi:forge:installed:app", "status": "caveat", "note": "Connect 'installed' lifecycle event is NOT sent after Forge adoption." },
+    "lifecycleUpdate": { "forge": "avi:forge:upgraded:app", "status": "direct" },
+    "lifecycleEnabled": { "forge": null, "status": "none", "note": "Connect 'enabled' lifecycle event is discontinued. Any app-init logic depending on it must be rewritten." },
+    "lifecycleDisabled": { "forge": null, "status": "none", "note": "Connect 'disabled' lifecycle event is discontinued." }
+  },
+
+  "jira": {
+    "adminPages": { "forge": "jira:adminPage", "status": "direct" },
+    "postInstallPage": { "forge": "jira:adminPage", "status": "caveat", "note": "Repurposed for configuration; no dedicated post-install surface." },
+    "configurePage": { "forge": "jira:adminPage", "status": "caveat", "note": "Admin context handling differs." },
+    "jiraBackgroundScripts": { "forge": "jira:dashboardBackgroundScript / jira:issueViewBackgroundScript", "status": "caveat", "note": "Split by context - one Connect module becomes two Forge modules." },
+    "jiraDashboardItem": { "forge": "jira:dashboardGadget", "status": "direct", "dataMigration": true },
+    "dialogs": { "forge": "Modal (UI Kit / Custom UI)", "status": "redesign", "note": "Not a module. Achieved via component patterns - requires UI rework." },
+    "jiraEntityProperties": { "forge": "jira:entityProperty", "status": "direct" },
+    "jiraGlobalPermissions": { "forge": "jira:globalPermission", "status": "direct", "dataMigration": true },
+    "jiraIssueContents": { "forge": "jira:issuePanel", "status": "caveat", "note": "Panel is not opened by default (FRGE-734). UX regression vs Connect." },
+    "jiraIssueContexts": { "forge": "jira:issueContext", "status": "direct" },
+    "jiraIssueFields": { "forge": "jira:customField", "status": "direct" },
+    "jiraIssueGlances": { "forge": "jira:issueGlance", "status": "direct" },
+    "jiraJqlFunctions": { "forge": "jira:jqlFunction", "status": "direct" },
+    "keyboardShortcuts": { "forge": "jira:command", "status": "preview" },
+    "generalPages": { "forge": "jira:globalPage", "status": "caveat", "note": "Page rendering contexts differ." },
+    "jiraProjectAdminTabPanels": { "forge": "jira:projectSettingsPage", "status": "direct" },
+    "jiraProjectPages": { "forge": "jira:projectPage", "status": "direct" },
+    "jiraProjectPermissions": { "forge": "jira:projectPermission", "status": "direct", "dataMigration": true },
+    "jiraIssueTabPanels": { "forge": "jira:issueActivity", "status": "caveat", "note": "Maps to activity stream context, not a general tab." },
+    "jiraTimeTrackingProviders": { "forge": "jira:timeTrackingProvider", "status": "direct" },
+    "jiraWorkflowConditions": { "forge": "jira:workflowCondition", "status": "preview", "dataMigration": true },
+    "jiraWorkflowPostFunctions": { "forge": "jira:workflowPostFunction", "status": "preview", "dataMigration": true },
+    "jiraWorkflowValidators": { "forge": "jira:workflowValidator", "status": "preview", "dataMigration": true },
+    "jiraBuildInfoProvider": { "forge": "devops:buildInfoProvider", "status": "direct" },
+    "jiraDeploymentInfoProvider": { "forge": "devops:deploymentInfoProvider", "status": "direct" },
+    "jiraFeatureFlagInfoProvider": { "forge": "devops:featureFlagInfoProvider", "status": "direct" },
+    "jiraRemoteLinkInfoProvider": { "forge": "devops:remoteLinkInfoProvider", "status": "direct" },
+    "jiraDevelopmentTool": { "forge": "devops:developmentInfoProvider", "status": "direct" },
+    "jiraSecurityInfoProvider": { "forge": "devops:securityInfoProvider", "status": "direct" }
+  },
+
+  "jiraServiceManagement": {
+    "serviceDeskQueueGroups": { "forge": "jiraServiceManagement:queuePage", "status": "direct" },
+    "serviceDeskQueues": { "forge": "jiraServiceManagement:queuePage", "status": "direct" },
+    "serviceDeskOrganizationPanels": { "forge": "jiraServiceManagement:organizationPanel", "status": "direct" },
+    "serviceDeskPortalHeaders": { "forge": "jiraServiceManagement:portalHeader", "status": "direct" },
+    "serviceDeskPortalSubHeaders": { "forge": "jiraServiceManagement:portalSubheader", "status": "direct" },
+    "serviceDeskPortalFooters": { "forge": "jiraServiceManagement:portalFooter", "status": "direct" },
+    "serviceDeskPortalRequestViewPanels": { "forge": "jiraServiceManagement:portalRequestDetailPanel", "status": "direct" },
+    "serviceDeskPortalRequestViewDetailsPanels": { "forge": "jiraServiceManagement:portalRequestDetail", "status": "direct" },
+    "serviceDeskPortalProfilePanels": { "forge": "jiraServiceManagement:portalProfilePanel", "status": "direct" },
+    "serviceDeskPortalRequestViewAction": { "forge": "jiraServiceManagement:portalRequestViewAction", "status": "direct" },
+    "serviceDeskPortalUserMenuAction": { "forge": "jiraServiceManagement:portalUserMenuAction", "status": "direct" },
+    "serviceDeskPortalRequestCreatePropertyPanels": { "forge": "jiraServiceManagement:portalRequestCreatePropertyPanel", "status": "direct" }
+  },
+
+  "confluence": {
+    "adminPages": { "forge": "confluence:globalSettings", "status": "direct" },
+    "blueprints": { "forge": "Create Content Template API", "status": "redesign", "note": "No module equivalent. Must be rebuilt against the Create Content Template API." },
+    "configurePage": { "forge": "confluence:globalSettings", "status": "caveat" },
+    "contentBylineItems": { "forge": "confluence:contentBylineItem", "status": "direct" },
+    "customContent": { "forge": "confluence:customContent", "status": "direct", "dataMigration": true },
+    "dialogs": { "forge": "Modal (UI Kit / Custom UI)", "status": "redesign", "note": "Not a module. Requires UI rework." },
+    "dynamicContentMacros": { "forge": "macro", "status": "caveat", "dataMigration": true, "note": "Cannot be rendered within the Confluence legacy editor." },
+    "staticContentMacros": { "forge": "macro", "status": "redesign", "dataMigration": true, "note": "KNOWN PAIN POINT. Requires transition and migration to a regular macro; community reports rendering-fidelity loss vs Connect's staticContentMacro." },
+    "keyboardShortcuts": { "forge": "keyboardShortcut", "status": "direct" },
+    "generalPages": { "forge": "confluence:globalPage", "status": "caveat" },
+    "postInstallPage": { "forge": "confluence:globalSettings", "status": "caveat" },
+    "spaceToolsTabs": { "forge": "confluence:spaceSettings", "status": "direct" },
+    "confluenceContentProperties": { "forge": "confluence:contentProperty", "status": "caveat", "note": "Must remove the Connect module in the SAME release to avoid CQL namespace conflicts breaking search." }
+  },
+
+  "webItemLocations": {
+    "jira": {
+      "system.top.navigation.bar": "jira:globalPage",
+      "admin_plugins_menu": "jira:adminPage",
+      "admin_plugins_menu/configuration-menu": "jira:adminPage",
+      "admin_plugins_menu/admin-menu-section": "jira:adminPage",
+      "admin_plugins_menu/app-settings-section": "jira:adminPage",
+      "admin_plugins_menu/app-menu": "jira:adminPage",
+      "admin_plugins_menu/admin-section": "jira:adminPage",
+      "admin_plugins_menu/configuration-section": "jira:adminPage",
+      "admin_system_menu": "jira:adminPage",
+      "admin_applications_section/admin_applications_integrations_section": "jira:adminPage",
+      "advanced_menu_section/advanced_section": "jira:adminPage",
+      "top_system_section": "jira:adminPage",
+      "top_plugins_section": "jira:adminPage",
+      "atl.jira.proj.config": "jira:projectSettingsPage",
+      "atl.jira.proj.config/projectgroup1": "jira:projectSettingsPage",
+      "atl.jira.proj.config/projectgroup2": "jira:projectSettingsPage",
+      "atl.jira.proj.config/projectgroup4": "jira:projectSettingsPage",
+      "system.user.options/personal": "jira:personalSettingsPage (preview)",
+      "jira.navigator.pluggable.items": "jira:issueNavigatorAction (preview)",
+      "jira.issue.tools": "jira:issueAction",
+      "operations-operations": "jira:issueAction",
+      "operations-top-level": "jira:issueAction",
+      "operations-work": "jira:issueAction",
+      "operations-attachments": "jira:issueAction",
+      "operations-subtasks": "jira:issueAction",
+      "opsbar-operations": "jira:issueAction",
+      "jira.project.sidebar.plugins.navigation": "jira:projectPage",
+      "jira.project.sidebar.navigation": "jira:projectPage",
+      "jira.project.sidebar.legacy.tabs.navigation": "jira:projectPage",
+      "jira.agile.board.tools": "jira:boardAction (preview)",
+      "jira.software.board.tools": "jira:boardAction (preview)",
+      "board-tools-1": "jira:boardAction (preview)",
+      "view-actions-print": "jira:boardAction (preview)",
+      "jira.software.backlog.tools": "jira:backlogAction (preview)",
+      "sprint-move-actions": "jira:sprintAction",
+      "sprint-delete-action": "jira:sprintAction",
+      "servicedesk.agent.queues": "jiraServiceManagement:queuePage",
+      "servicedesk.agent.queues/web-section-servicedesk-agent-queues": "jiraServiceManagement:queuePage"
+    },
+    "confluence": {
+      "system.header/left": "confluence:globalPage",
+      "system.admin": "confluence:globalSettings",
+      "system.admin/configuration": "confluence:globalSettings",
+      "system.admin/administration": "confluence:globalSettings",
+      "system.content.action": "confluence:contentAction",
+      "system.content.action/secondary": "confluence:contentAction",
+      "system.content.action/primary": "confluence:contentAction",
+      "system.content.action/modify": "confluence:contentAction",
+      "system.content.action/marker": "confluence:contentAction",
+      "system.space.sidebar/main-links": "confluence:spacePage",
+      "system.top.navigation.bar": "confluence:globalPage",
+      "system.space.tools/contenttools": "confluence:spaceSettings",
+      "system.space.tools/overview": "confluence:spaceSettings",
+      "system.space.tools/integrations": "confluence:spaceSettings",
+      "page.view.selection/action-panel": "confluence:contextMenu"
+    }
+  },
+
+  "webPanelLocations": {
+    "jira": {
+      "atl.jira.view.issue.left.context": "jira:issuePanel",
+      "atl.jira.view.issue.right.context": "jira:issueGlance",
+      "atl.gh.issue.details.tab": "jira:issuePanel"
+    },
+    "confluence": {
+      "atl.footer": "confluence:backgroundScript",
+      "atl.general": "confluence:pageBanner"
+    }
+  },
+
+  "webhooks": {
+    "jira": {
+      "jira:issue_created": "avi:jira:created:issue",
+      "jira:issue_updated": "avi:jira:updated:issue",
+      "jira:issue_deleted": "avi:jira:deleted:issue",
+      "issue_created": "avi:jira:created:issue",
+      "issue_updated": "avi:jira:updated:issue",
+      "issue_deleted": "avi:jira:deleted:issue",
+      "comment_created": "avi:jira:commented:issue",
+      "comment_updated": "avi:jira:commented:issue",
+      "comment_deleted": "avi:jira:deleted:comment",
+      "worklog_created": "avi:jira:created:worklog",
+      "worklog_updated": "avi:jira:updated:worklog",
+      "worklog_deleted": "avi:jira:deleted:worklog",
+      "jira:worklog_updated": "avi:jira:updated:worklog",
+      "project_created": "avi:jira:created:project",
+      "project_updated": "avi:jira:updated:project",
+      "project_deleted": "avi:jira:deleted:project",
+      "jira:project_created": "avi:jira:created:project",
+      "jira:project_updated": "avi:jira:updated:project",
+      "jira:project_deleted": "avi:jira:deleted:project",
+      "project_soft_deleted": "avi:jira:softdeleted:project",
+      "project_archived": "avi:jira:archived:project",
+      "project_restored_deleted": "avi:jira:restored:project",
+      "project_restored_archived": "avi:jira:unarchived:project",
+      "issuelink_created": "avi:jira:created:issuelink",
+      "issuelink_deleted": "avi:jira:deleted:issuelink",
+      "user_created": "avi:jira:created:user",
+      "user_updated": "avi:jira:updated:user",
+      "user_deleted": "avi:jira:deleted:user",
+      "jira:version_created": "avi:jira:created:version",
+      "jira:version_updated": "avi:jira:updated:version",
+      "jira:version_deleted": "avi:jira:deleted:version",
+      "jira:version_released": "avi:jira:released:version",
+      "jira:version_unreleased": "avi:jira:unreleased:version",
+      "jira:version_moved": "avi:jira:moved:version",
+      "jira:version_merged": "avi:jira:merged:version",
+      "sprint_created": "avi:jira-software:created:sprint",
+      "sprint_updated": "avi:jira-software:updated:sprint",
+      "sprint_started": "avi:jira-software:started:sprint",
+      "sprint_closed": "avi:jira-software:closed:sprint",
+      "sprint_deleted": "avi:jira-software:deleted:sprint",
+      "board_created": "avi:jira-software:created:board",
+      "board_updated": "avi:jira-software:updated:board",
+      "board_deleted": "avi:jira-software:deleted:board",
+      "board_configuration_changed": "avi:jira-software:configuration-changed:board",
+      "attachment_created": "avi:jira:created:attachment",
+      "attachment_deleted": "avi:jira:deleted:attachment",
+      "filter_created": "avi:jira:created:filter",
+      "filter_updated": "avi:jira:updated:filter",
+      "filter_deleted": "avi:jira:deleted:filter",
+      "issuetype_created": "avi:jira:created:issuetype",
+      "issuetype_updated": "avi:jira:updated:issuetype",
+      "issuetype_deleted": "avi:jira:deleted:issuetype",
+      "option_timetracking_changed": "avi:jira:timetracking:provider:changed",
+      "option_subtasks_changed": "avi:jira:changed:configuration",
+      "option_issuelinks_changed": "avi:jira:changed:configuration",
+      "option_unassigned_issues_changed": "avi:jira:changed:configuration",
+      "option_watching_changed": "avi:jira:changed:configuration",
+      "option_voting_changed": "avi:jira:changed:configuration"
+    },
+    "confluence": {
+      "page_created": "avi:confluence:created:page",
+      "page_viewed": "avi:confluence:viewed:page",
+      "page_updated": "avi:confluence:updated:page",
+      "page_copied": "avi:confluence:copied:page",
+      "page_moved": "avi:confluence:moved:page",
+      "page_children_reordered": "avi:confluence:children_reordered:page",
+      "page_archived": "avi:confluence:archived:page",
+      "page_unarchived": "avi:confluence:unarchived:page",
+      "page_trashed": "avi:confluence:trashed:page",
+      "page_restored": "avi:confluence:restored:page",
+      "page_deleted": "avi:confluence:deleted:page",
+      "blog_created": "avi:confluence:created:blogpost",
+      "blog_viewed": "avi:confluence:viewed:blogpost",
+      "blog_updated": "avi:confluence:updated:blogpost",
+      "blog_trashed": "avi:confluence:trashed:blogpost",
+      "blog_restored": "avi:confluence:restored:blogpost",
+      "blog_deleted": "avi:confluence:deleted:blogpost",
+      "comment_created": "avi:confluence:created:comment",
+      "comment_updated": "avi:confluence:updated:comment",
+      "comment_removed": "avi:confluence:deleted:comment",
+      "attachment_created": "avi:confluence:created:attachment",
+      "attachment_viewed": "avi:confluence:viewed:attachment",
+      "attachment_updated": "avi:confluence:updated:attachment",
+      "attachment_archived": "avi:confluence:archived:attachment",
+      "attachment_unarchived": "avi:confluence:unarchived:attachment",
+      "attachment_trashed": "avi:confluence:trashed:attachment",
+      "attachment_restored": "avi:confluence:restored:attachment",
+      "attachment_deleted": "avi:confluence:deleted:attachment",
+      "content_created": "avi:confluence:created:custom_content",
+      "content_updated": "avi:confluence:updated:custom_content",
+      "content_trashed": "avi:confluence:trashed:custom_content",
+      "content_restored": "avi:confluence:restored:custom_content",
+      "content_deleted": "avi:confluence:deleted:custom_content",
+      "content_permissions_updated": "Multiple events (pages, blogs, whiteboards, databases, folders, custom content)",
+      "space_created": "avi:confluence:created:space:V2",
+      "space_updated": "avi:confluence:updated:space:V2",
+      "space_permissions_updated": "avi:confluence:permissions_updated:space:V2",
+      "space_removed": "avi:confluence:deleted:space:V2",
+      "label_created": "avi:confluence:created:label",
+      "label_added": "avi:confluence:added:label",
+      "label_removed": "avi:confluence:removed:label",
+      "label_deleted": "avi:confluence:deleted:label"
+    }
+  },
+
+  "globalRisks": [
+    {
+      "id": "lifecycle-events",
+      "severity": "high",
+      "title": "Connect lifecycle events are discontinued",
+      "detail": "The 'enabled', 'disabled' and 'installed' lifecycle events are no longer sent after Forge adoption. Any app initialisation, provisioning or tenant-setup logic that depends on them must be rewritten.",
+      "triggerKeys": ["lifecycle"]
+    },
+    {
+      "id": "unlicensed-access",
+      "severity": "high",
+      "title": "Unlicensed and anonymous user access requires explicit opt-in",
+      "detail": "Forge requires the 'unlicensedAccess' property to be declared. Without it, modules previously reachable by unlicensed or anonymous users become unavailable - a silent functional regression.",
+      "triggerKeys": []
+    },
+    {
+      "id": "licensing-consistency",
+      "severity": "high",
+      "title": "Licensing must remain consistent across the migration",
+      "detail": "A paid Connect app requires a paid Forge equivalent; an unpaid one must remain unpaid. This cannot be changed until every installation has migrated.",
+      "triggerKeys": []
+    },
+    {
+      "id": "suspended-licenses",
+      "severity": "medium",
+      "title": "Installations with suspended licenses cannot migrate",
+      "detail": "Customers with a suspended license must resubscribe before their installation can be migrated. Expect a long tail of stuck installs requiring customer outreach.",
+      "triggerKeys": []
+    },
+    {
+      "id": "fit-tokens",
+      "severity": "high",
+      "title": "Remote endpoints must validate Forge Invocation Tokens, not JWT",
+      "detail": "Any retained remote backend must replace JWT validation with Forge Invocation Token (FIT) validation. This is a security-critical change.",
+      "triggerKeys": ["baseUrl"]
+    },
+    {
+      "id": "app-key-environments",
+      "severity": "medium",
+      "title": "App keys are not environment-specific in the manifest",
+      "detail": "'app.connect.key' is not environment-aware, so dev/stage/prod keys must be handled manually in the build or deploy process.",
+      "triggerKeys": []
+    },
+    {
+      "id": "audit-log",
+      "severity": "low",
+      "title": "Forge updates appear as a new installation in the audit log",
+      "detail": "Rather than updating the existing installation record. Customers with audit-log-based compliance reporting should be warned in advance.",
+      "triggerKeys": []
+    }
+  ]
+}
+;
+
+// Pure analysis + rendering logic. No filesystem, no Node built-ins - so the exact
+// same code runs in the CLI and inside the generated single-file web page.
+// Every function takes MAP explicitly rather than importing it.
+
+const EFFORT_BY_STATUS = { direct: 0.5, caveat: 1.5, preview: 2, redesign: 5, none: 8, unknown: 3 };
+const UI_SURCHARGE = 1.5;
+const BASE_OVERHEAD_DAYS = 5;
+const UI_BEARING = /page|panel|macro|dialog|glance|item|gadget|field|content|header|footer|banner|menu|action|tab/i;
+
+const AMBIGUOUS = new Set([
+  'adminPages', 'generalPages', 'configurePage', 'postInstallPage',
+  'dialogs', 'keyboardShortcuts', 'webItems', 'webPanels', 'webhooks',
+]);
+
+const ICON = { direct: '🟢', caveat: '🟡', preview: '🟠', redesign: '🔴', none: '⛔', unknown: '⚪' };
+const LABEL = {
+  direct: 'Direct equivalent',
+  caveat: 'Equivalent with caveats',
+  preview: 'Forge module in preview',
+  redesign: 'Requires redesign',
+  none: 'No equivalent',
+  unknown: 'Unrecognised module',
+};
+const ORDER = ['none', 'redesign', 'preview', 'caveat', 'unknown', 'direct'];
+
+const toArray = (v) => (Array.isArray(v) ? v : v == null ? [] : [v]);
+
+function detectProducts(MAP, descriptor) {
+  const modules = descriptor.modules || {};
+  const keys = Object.keys(modules).filter((k) => !AMBIGUOUS.has(k));
+  const products = new Set();
+
+  if (keys.some((k) => k in MAP.jira) || keys.some((k) => /^jira/i.test(k))) products.add('jira');
+  if (keys.some((k) => k in MAP.confluence) || keys.some((k) => /^confluence|macro|blueprint|spaceTools/i.test(k))) products.add('confluence');
+  if (keys.some((k) => k in MAP.jiraServiceManagement) || keys.some((k) => /^serviceDesk/i.test(k))) products.add('jiraServiceManagement');
+
+  if (products.size === 0) {
+    const scopes = (descriptor.scopes || []).join(' ').toLowerCase();
+    if (scopes.includes('confluence')) products.add('confluence');
+    else products.add('jira');
+  }
+  return [...products];
+}
+
+function lookupModule(MAP, rawName, products) {
+  const name = MAP.aliases[rawName] || rawName;
+
+  for (const p of products) {
+    if (MAP[p] && MAP[p][name]) return { ...MAP[p][name], product: p };
+  }
+  if (MAP.platform[name]) return { ...MAP.platform[name], product: 'platform' };
+  for (const p of ['jira', 'confluence', 'jiraServiceManagement']) {
+    if (MAP[p][name]) return { ...MAP[p][name], product: p };
+  }
+  if (MAP.absentFromEquivalenceTable[name]) {
+    return {
+      forge: null,
+      status: 'none',
+      note: `${MAP.absentFromEquivalenceTable[name]} (Not listed in Atlassian's published equivalence table - verify manually before committing to a scope.)`,
+      product: products[0],
+      unverified: true,
+    };
+  }
+  return null;
+}
+
+function locationFinding(MAP, kind, location, products, moduleKey) {
+  const table = kind === 'webItems' ? MAP.webItemLocations : MAP.webPanelLocations;
+  for (const p of products) {
+    if (table[p] && table[p][location]) {
+      const forge = table[p][location];
+      return {
+        module: `${kind}[${location}]`, key: moduleKey, forge,
+        status: /preview/i.test(forge) ? 'preview' : 'direct', product: p,
+      };
+    }
+  }
+  return {
+    module: `${kind}[${location}]`, key: moduleKey, forge: null, status: 'none',
+    note: `Location "${location}" has no documented Forge equivalent. Requires a product decision on where this UI should live in Forge, or removal.`,
+    product: products[0],
+  };
+}
+
+function webhookFinding(MAP, event, products, moduleKey) {
+  for (const p of [...products, 'jira', 'confluence']) {
+    if (MAP.webhooks[p] && MAP.webhooks[p][event]) {
+      return { module: `webhooks[${event}]`, key: moduleKey, forge: MAP.webhooks[p][event], status: 'direct', product: p };
+    }
+  }
+  return {
+    module: `webhooks[${event}]`, key: moduleKey, forge: null, status: 'none',
+    note: `Webhook "${event}" has no documented Forge product event. Verify against the current events reference before scoping.`,
+    product: products[0],
+  };
+}
+
+function analyze(MAP, descriptor) {
+  const products = detectProducts(MAP, descriptor);
+  const modules = descriptor.modules || {};
+  const findings = [];
+
+  for (const [name, value] of Object.entries(modules)) {
+    if (name === 'webItems' || name === 'webPanels') {
+      for (const entry of toArray(value)) findings.push(locationFinding(MAP, name, entry.location || '(no location)', products, entry.key));
+      continue;
+    }
+    if (name === 'webhooks') {
+      for (const entry of toArray(value)) findings.push(webhookFinding(MAP, entry.event || '(no event)', products, entry.key));
+      continue;
+    }
+
+    const hit = lookupModule(MAP, name, products);
+    const entries = toArray(value);
+    for (let i = 0; i < Math.max(entries.length, 1); i++) {
+      const entry = entries[i] || {};
+      findings.push({
+        module: name,
+        key: entry.key,
+        forge: hit ? hit.forge : null,
+        status: hit ? hit.status : 'unknown',
+        note: hit ? hit.note : `"${name}" is not in the equivalence table. It may be deprecated, product-specific, or newly added - verify manually against Atlassian's docs.`,
+        dataMigration: hit ? !!hit.dataMigration : false,
+        product: hit ? hit.product : products[0],
+      });
+    }
+  }
+
+  const globalRisks = MAP.globalRisks.filter((r) => {
+    if (!r.triggerKeys || r.triggerKeys.length === 0) return true;
+    return r.triggerKeys.some((k) => (k === 'baseUrl' ? !!descriptor.baseUrl : k === 'lifecycle' ? !!descriptor.lifecycle : false));
+  });
+
+  let moduleDays = 0;
+  for (const f of findings) {
+    let d = EFFORT_BY_STATUS[f.status] ?? EFFORT_BY_STATUS.unknown;
+    if (UI_BEARING.test(f.module)) d += UI_SURCHARGE;
+    moduleDays += d;
+    f.effortDays = Number(d.toFixed(1));
+  }
+  const totalDays = Math.ceil(moduleDays + BASE_OVERHEAD_DAYS);
+  const summary = findings.reduce((acc, f) => ((acc[f.status] = (acc[f.status] || 0) + 1), acc), {});
+
+  return {
+    app: {
+      key: descriptor.key, name: descriptor.name, baseUrl: descriptor.baseUrl,
+      hasLifecycle: !!descriptor.lifecycle, scopes: descriptor.scopes || [], products,
+    },
+    findings, globalRisks, summary,
+    blockers: findings.filter((f) => f.status === 'none' || f.status === 'redesign'),
+    effort: {
+      moduleDays: Number(moduleDays.toFixed(1)),
+      baseOverheadDays: BASE_OVERHEAD_DAYS,
+      totalDays,
+      totalWeeks: Number((totalDays / 5).toFixed(1)),
+    },
+    meta: MAP.meta,
+  };
+}
+
+// A single capability with no Forge equivalent can stop a migration outright, so
+// absolute blocker count caps the score independently of the proportional maths.
+function blockerCeiling(n) {
+  if (n === 0) return 100;
+  if (n <= 2) return 75;
+  if (n <= 5) return 55;
+  if (n <= 9) return 40;
+  return 25;
+}
+
+function readiness(report) {
+  const { summary, findings } = report;
+  const total = findings.length || 1;
+  const bad = (summary.none || 0) + (summary.redesign || 0);
+  const mid = (summary.preview || 0) + (summary.caveat || 0) + (summary.unknown || 0);
+  const proportional = 100 - (bad / total) * 70 - (mid / total) * 25;
+  const score = Math.round(Math.min(proportional, blockerCeiling(summary.none || 0)));
+  if (score >= 80) return { score, verdict: 'Straightforward', note: 'Mostly direct equivalents. This is a mechanical migration.' };
+  if (score >= 55) return { score, verdict: 'Moderate', note: 'Several modules need behavioural changes or depend on preview APIs.' };
+  if (score >= 30) return { score, verdict: 'Difficult', note: 'Significant redesign required. Scope carefully before committing to a date.' };
+  return { score, verdict: 'High risk', note: 'Core capabilities have no Forge equivalent. A product decision is needed before any engineering.' };
+}
+
+function toMarkdown(report) {
+  const { app, findings, globalRisks, summary, effort, meta } = report;
+  const r = readiness(report);
+  const out = [];
+
+  out.push(`# Forge Migration Readiness Report`, '');
+  out.push(`**App:** ${app.name || '(unnamed)'} \`${app.key || 'no-key'}\``);
+  out.push(`**Products:** ${app.products.join(', ')}`);
+  out.push(`**Modules analysed:** ${findings.length}`, '');
+  out.push(`## Verdict: ${r.verdict} (${r.score}/100)`, '', r.note, '');
+  out.push(`**Estimated effort: ${effort.totalDays} developer-days (~${effort.totalWeeks} ${effort.totalWeeks === 1 ? 'week' : 'weeks'})**`, '');
+  out.push(`> ${effort.moduleDays} days of module work plus ${effort.baseOverheadDays} days of base overhead (manifest, auth, build pipeline, deploy, regression pass). A planning heuristic derived from module counts and documented difficulty - not a quote.`, '');
+
+  out.push(`## Summary`, '', '| | Status | Count |', '|---|---|---|');
+  for (const s of ORDER) if (summary[s]) out.push(`| ${ICON[s]} | ${LABEL[s]} | ${summary[s]} |`);
+  out.push('');
+
+  const blockers = findings.filter((f) => f.status === 'none' || f.status === 'redesign');
+  if (blockers.length) {
+    out.push(`## ⛔ Blockers - resolve before scoping`, '');
+    for (const f of blockers) {
+      out.push(`### ${f.module}${f.key ? ` \`${f.key}\`` : ''}`, '');
+      out.push(`- **Forge target:** ${f.forge || '_none documented_'}`);
+      if (f.note) out.push(`- **Why it matters:** ${f.note}`);
+      out.push(`- **Estimated:** ${f.effortDays} days`, '');
+    }
+  }
+
+  out.push(`## Module-by-module`, '', '| Connect module | Key | Forge equivalent | Status | Days |', '|---|---|---|---|---|');
+  for (const f of [...findings].sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status))) {
+    out.push(`| \`${f.module}\` | ${f.key ? `\`${f.key}\`` : '—'} | ${f.forge ? `\`${f.forge}\`` : '—'} | ${ICON[f.status]} ${LABEL[f.status]} | ${f.effortDays} |`);
+  }
+  out.push('');
+
+  const noted = findings.filter((f) => f.note && f.status !== 'none' && f.status !== 'redesign');
+  if (noted.length) {
+    out.push(`## Behavioural differences to plan for`, '');
+    for (const f of noted) out.push(`- **\`${f.module}\`** — ${f.note}`);
+    out.push('');
+  }
+
+  const dm = findings.filter((f) => f.dataMigration);
+  if (dm.length) {
+    out.push(`## Data migration required`, '');
+    out.push('These modules carry customer data. Migrating the module without migrating the data loses customer configuration:', '');
+    for (const f of dm) out.push(`- \`${f.module}\` → \`${f.forge}\``);
+    out.push('');
+  }
+
+  out.push(`## Platform-level risks`, '');
+  for (const g of globalRisks) {
+    out.push(`### ${g.severity === 'high' ? '🔴' : g.severity === 'medium' ? '🟡' : '⚪'} ${g.title}`, '', g.detail, '');
+  }
+
+  if (app.baseUrl) {
+    out.push(`## Hosting`, '');
+    out.push(`This app declares \`baseUrl: ${app.baseUrl}\`, so it currently runs on its own infrastructure. Two paths:`, '');
+    out.push(`1. **Full Forge** — move all compute to Forge functions and delete the hosting. Eligible for the *Runs on Atlassian* badge, which enterprise buyers filter on.`);
+    out.push(`2. **Forge Remote** — keep the existing backend and call it from Forge. Faster, but the remote must validate Forge Invocation Tokens instead of JWT, and you keep the hosting bill.`, '');
+  }
+
+  out.push('---', '');
+  out.push(`Connect end of support: **${meta.connectEndOfSupport}**. Connect descriptor updates have been blocked since **${meta.connectUpdatesFrozenSince}** — apps still on Connect cannot ship changes.`, '');
+  out.push(`Mapping data from Atlassian's Connect/Forge equivalences, retrieved ${meta.retrieved}.`);
+  return out.join('\n');
+}
+
+function toTerminal(report) {
+  const r = readiness(report);
+  const { app, summary, effort, findings } = report;
+  const lines = ['', `  ${app.name || '(unnamed)'}  [${app.products.join(', ')}]`, `  ${'─'.repeat(52)}`];
+  lines.push(`  Verdict:  ${r.verdict} (${r.score}/100)`);
+  lines.push(`  Modules:  ${findings.length}`);
+  lines.push(`  Effort:   ~${effort.totalDays} developer-days (~${effort.totalWeeks} ${effort.totalWeeks === 1 ? 'week' : 'weeks'})`, '');
+  for (const s of ORDER) if (summary[s]) lines.push(`    ${ICON[s]} ${String(summary[s]).padStart(3)}  ${LABEL[s]}`);
+  lines.push('');
+  const blockers = findings.filter((f) => f.status === 'none' || f.status === 'redesign');
+  if (blockers.length) {
+    lines.push(`  Blockers:`);
+    for (const b of blockers) lines.push(`    ⛔ ${b.module}${b.key ? ` (${b.key})` : ''}`);
+    lines.push('');
+  }
+  return lines.join('\n');
+}
+
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+const EXAMPLES = {
+  conf: {
+  "key": "com.example.docs-toolkit",
+  "name": "Docs Toolkit for Confluence",
+  "description": "Sample Connect descriptor exercising known migration pain points.",
+  "baseUrl": "https://docs-toolkit.example.com",
+  "authentication": { "type": "jwt" },
+  "lifecycle": {
+    "installed": "/lifecycle/installed",
+    "uninstalled": "/lifecycle/uninstalled",
+    "enabled": "/lifecycle/enabled",
+    "disabled": "/lifecycle/disabled"
+  },
+  "scopes": ["READ", "WRITE", "SPACE_ADMIN"],
+  "modules": {
+    "staticContentMacros": [
+      {
+        "key": "toc-macro",
+        "name": { "value": "Table of Contents" },
+        "url": "/macro/toc",
+        "outputType": "block",
+        "bodyType": "none"
+      }
+    ],
+    "dynamicContentMacros": [
+      {
+        "key": "status-macro",
+        "name": { "value": "Status Badge" },
+        "url": "/macro/status",
+        "outputType": "inline"
+      }
+    ],
+    "blueprints": [
+      { "key": "meeting-notes-blueprint", "template": { "url": "/templates/meeting-notes" } }
+    ],
+    "generalPages": [
+      { "key": "toolkit-home", "name": { "value": "Docs Toolkit" }, "url": "/home", "location": "system.header/left" }
+    ],
+    "adminPages": [
+      { "key": "toolkit-admin", "name": { "value": "Toolkit Settings" }, "url": "/admin" }
+    ],
+    "spaceToolsTabs": [
+      { "key": "space-audit", "name": { "value": "Space Audit" }, "url": "/space/audit", "location": "contenttools" }
+    ],
+    "contentBylineItems": [
+      { "key": "byline-freshness", "name": { "value": "Freshness" }, "tooltip": { "value": "Page freshness" } }
+    ],
+    "confluenceContentProperties": [
+      { "key": "toolkit-metadata", "name": { "value": "Toolkit Metadata" }, "keyConfigurations": [] }
+    ],
+    "webItems": [
+      { "key": "export-action", "location": "system.content.action/primary", "name": { "value": "Export" }, "url": "/export" },
+      { "key": "legacy-sidebar", "location": "system.space.sidebar/main-links", "name": { "value": "Toolkit" }, "url": "/space" },
+      { "key": "orphan-item", "location": "system.some.unknown.location", "name": { "value": "Legacy" }, "url": "/legacy" }
+    ],
+    "webPanels": [
+      { "key": "footer-tracker", "location": "atl.footer", "name": { "value": "Tracker" }, "url": "/tracker" }
+    ],
+    "webhooks": [
+      { "event": "page_updated", "url": "/hooks/page-updated" },
+      { "event": "space_removed", "url": "/hooks/space-removed" },
+      { "event": "some_legacy_event", "url": "/hooks/legacy" }
+    ]
+  }
+}
+,
+  jira: {
+  "key": "com.example.sprint-reporter",
+  "name": "Sprint Reporter for Jira",
+  "baseUrl": "https://sprint-reporter.example.com",
+  "authentication": { "type": "jwt" },
+  "scopes": ["READ", "WRITE"],
+  "modules": {
+    "jiraDashboardItem": { "key": "sprint-gadget", "name": { "value": "Sprint Gadget" }, "url": "/gadget" },
+    "jiraIssueFields": [{ "key": "story-points", "name": { "value": "Story Points" }, "type": "number" }],
+    "jiraWorkflowPostFunctions": [{ "key": "notify-pf", "name": { "value": "Notify" }, "triggered": { "url": "/pf" } }],
+    "webPanels": [
+      { "key": "left-panel", "location": "atl.jira.view.issue.left.context", "name": { "value": "Details" }, "url": "/panel" },
+      { "key": "right-panel", "location": "atl.jira.view.issue.right.context", "name": { "value": "Glance" }, "url": "/glance" }
+    ],
+    "webItems": [{ "key": "board-tool", "location": "jira.agile.board.tools", "name": { "value": "Report" }, "url": "/report" }],
+    "webhooks": [{ "event": "sprint_closed", "url": "/hooks/sprint" }]
+  }
+}
+
+};
+
+function scoreColor(score) {
+  if (score >= 80) return 'var(--ok)';
+  if (score >= 55) return 'var(--warn)';
+  return 'var(--bad)';
+}
+
+function render(report) {
+  const r = readiness(report);
+  const { summary, findings, effort, app, globalRisks } = report;
+  const col = scoreColor(r.score);
+  const h = [];
+
+  h.push('<div class="card">');
+  h.push('<div class="verdict"><span class="score" style="color:' + col + '">' + r.score + '</span>');
+  h.push('<span class="vlabel">' + esc(r.verdict) + '</span>');
+  h.push('<span style="color:var(--muted);font-size:14px">' + esc(app.name || '(unnamed)') + ' · ' + esc(app.products.join(', ')) + ' · ' + findings.length + ' modules</span></div>');
+  h.push('<div class="bar"><i style="width:' + r.score + '%;background:' + col + '"></i></div>');
+  h.push('<p class="effort">' + esc(r.note) + '</p>');
+  h.push('<p class="effort"><strong>~' + effort.totalDays + ' developer-days (~' + effort.totalWeeks + (effort.totalWeeks === 1 ? ' week' : ' weeks') + ')</strong></p>');
+  h.push('<div class="chips">');
+  for (const s of ORDER) if (summary[s]) h.push('<span class="chip">' + ICON[s] + ' ' + summary[s] + ' ' + esc(LABEL[s]) + '</span>');
+  h.push('</div></div>');
+
+  const blockers = findings.filter((f) => f.status === 'none' || f.status === 'redesign');
+  if (blockers.length) {
+    h.push('<h2>⛔ Blockers — resolve before scoping</h2>');
+    for (const f of blockers) {
+      h.push('<div class="blocker"><h3>' + esc(f.module) + (f.key ? ' <span style="color:var(--muted)">' + esc(f.key) + '</span>' : '') + '</h3>');
+      h.push('<p>' + esc(f.note || 'No Forge equivalent documented.') + '</p></div>');
+    }
+  }
+
+  h.push('<h2>Module-by-module</h2><div class="tablewrap"><table><thead><tr>');
+  h.push('<th>Connect module</th><th>Key</th><th>Forge equivalent</th><th>Status</th><th>Days</th></tr></thead><tbody>');
+  const sorted = findings.slice().sort((a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status));
+  for (const f of sorted) {
+    h.push('<tr><td><code>' + esc(f.module) + '</code></td><td>' + (f.key ? '<code>' + esc(f.key) + '</code>' : '—') +
+      '</td><td>' + (f.forge ? '<code>' + esc(f.forge) + '</code>' : '—') +
+      '</td><td>' + ICON[f.status] + ' ' + esc(LABEL[f.status]) + '</td><td>' + f.effortDays + '</td></tr>');
+  }
+  h.push('</tbody></table></div>');
+
+  if (globalRisks.length) {
+    h.push('<h2>Platform-level risks</h2>');
+    for (const g of globalRisks) {
+      h.push('<div class="blocker" style="border-left-color:' + (g.severity === 'high' ? 'var(--bad)' : 'var(--warn)') + '">');
+      h.push('<h3 style="font-family:inherit">' + esc(g.title) + '</h3><p>' + esc(g.detail) + '</p></div>');
+    }
+  }
+
+  h.push('<div class="row"><button id="dl">Download full report (.md)</button></div>');
+  $('out').innerHTML = h.join('');
+  $('out').classList.remove('hidden');
+  $('dl').onclick = () => {
+    const blob = new Blob([toMarkdown(report)], { type: 'text/markdown' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (app.key || 'forge-migration') + '-report.md';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+  $('out').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function run() {
+  const raw = $('src').value.trim();
+  $('err').classList.add('hidden');
+  $('out').classList.add('hidden');
+  if (!raw) { $('err').textContent = 'Paste a descriptor first.'; $('err').classList.remove('hidden'); return; }
+  let descriptor;
+  try {
+    descriptor = JSON.parse(raw);
+  } catch (e) {
+    $('err').textContent = 'That is not valid JSON — ' + e.message;
+    $('err').classList.remove('hidden');
+    return;
+  }
+  if (!descriptor || typeof descriptor !== 'object' || !descriptor.modules) {
+    $('err').textContent = 'No "modules" object found. This does not look like an atlassian-connect.json descriptor.';
+    $('err').classList.remove('hidden');
+    return;
+  }
+  try {
+    render(analyze(MAP, descriptor));
+  } catch (e) {
+    $('err').textContent = 'Analysis failed: ' + e.message;
+    $('err').classList.remove('hidden');
+  }
+}
+
+$('go').onclick = run;
+$('ex-conf').onclick = () => { $('src').value = JSON.stringify(EXAMPLES.conf, null, 2); run(); };
+$('ex-jira').onclick = () => { $('src').value = JSON.stringify(EXAMPLES.jira, null, 2); run(); };
+$('clear').onclick = () => { $('src').value = ''; $('out').classList.add('hidden'); $('err').classList.add('hidden'); };
+$('src').addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') run(); });
+</script>

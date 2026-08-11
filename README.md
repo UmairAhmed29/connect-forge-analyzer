@@ -58,6 +58,26 @@ on `main`. Re-run `node build.js` and push to deploy.
 | 🟠 preview | Forge module still in preview — API may change. |
 | 🔴 redesign | No like-for-like module. Architectural change. |
 | ⛔ none | No documented equivalent. Blocker. |
+| ⚫ obsolete | Not a live Cloud Connect module. Delete it — zero effort, excluded from scoring. |
+
+## Two questions, not one
+
+"No Forge equivalent" and "can't ship it" are different questions, and a module can be
+either one without the other. Reports answer them separately:
+
+1. **Is there a Forge-native module?** — the status column above.
+2. **Could an app adopted from Connect keep carrying it?** — checked against
+   `connectModuleAllowlist`, transcribed from `SUPPORTED_MODULES` in `@forge/manifest`,
+   which is the allowlist `ConnectModulesValidator` matches `connectModules` keys against.
+
+Three things a pass on (2) does **not** mean, all of which the report states inline:
+
+- The validator matches the module **name** only. It never inspects the module body, which
+  must still satisfy the Connect schema.
+- The route is closed to apps not adopted from Connect — the manifest reference states
+  *"Adding Connect Modules to a new Forge app is not supported."*
+- Acceptance doesn't mean the surface still renders. `jira:jiraProjectTabPanels` and
+  `jira:jiraProjectAdminTabPanels` are both accepted and both were deprecated in 2017.
 
 ## On the effort estimate
 
@@ -78,12 +98,23 @@ That test caught two real bugs:
 
 1. **23% of modules fell through unmapped** and were reported as a neutral "unknown"
    rather than as risk. Modules absent from Atlassian's equivalence table (`webSections`,
-   `jiraReports`, `confluenceThemes`, `spaceViews` and others) are now listed explicitly in
+   `jiraReports`, `jiraSearchRequestViews`, `confluenceThemes`) are now listed explicitly in
    `absentFromEquivalenceTable` and surfaced as blockers, with the honest caveat that
    absence from the table is not formal proof no equivalent exists.
-2. **Blockers were diluted by easy modules.** A 43-module app with 12 unmigratable
-   capabilities scored 69/100 "Moderate". Absolute blocker count now imposes a ceiling on
-   the score, so that same app correctly reads 25/100 "High risk".
+2. **Blockers were diluted by easy modules.** Scored on proportion alone this 43-module
+   sample reads 74/100 "Moderate" despite 10 unmigratable capabilities. Absolute blocker
+   count now imposes a ceiling, so it correctly reads 40/100 "Difficult".
+
+A third bug came from [community
+review](https://community.developer.atlassian.com/t/i-mapped-every-connect-module-to-its-forge-equivalent-heres-the-tool-please-tell-me-where-its-wrong/102095):
+
+3. **Five entries weren't live Cloud Connect modules at all.** `spaceViews` is not a module —
+   it's the `spaceview` key inside a `confluenceThemes` entry's `routes` object.
+   `jiraVersionTabPanels` and `jiraComponentTabPanels` are Server/DC plugin modules.
+   `jiraProfileTabPanels` was deprecated in 2017 and support has since been removed from
+   Cloud. `profilePages` isn't in the Confluence Cloud module reference. All five were
+   scored as ⛔ blockers at 8 days each, inflating this sample by 46 days. They now report
+   as ⚫ obsolete at zero effort.
 
 Also verified against three real descriptors pulled from public GitHub repositories. All
 parse and analyse cleanly, though all three are small boilerplate apps — the tool has **not**
@@ -99,6 +130,10 @@ equivalences](https://developer.atlassian.com/platform/adopting-forge-from-conne
 and [limitations and
 differences](https://developer.atlassian.com/platform/adopting-forge-from-connect/limitations-and-differences/),
 retrieved 2026-08-09.
+
+`connectModuleAllowlist` is transcribed from `SUPPORTED_MODULES` in `@forge/manifest@13.3.0`,
+recorded as `meta.forgeManifestVersion`. That's a versioned npm package, so it moves
+independently of the docs — re-check it against the version you build with.
 
 Atlassian changes these tables. `data/module-map.json` carries a `retrieved` date — re-verify
 before relying on the output for a paid engagement.

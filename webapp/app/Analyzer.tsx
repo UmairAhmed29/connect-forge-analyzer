@@ -277,6 +277,27 @@ export default function Analyzer() {
                         style={{ background: 'var(--surface-2)', color: 'var(--muted)' }}>{f.effortDays}d</span>
                     </div>
                     {f.note && <p className="text-[13.5px] mt-2 leading-relaxed" style={{ color: 'var(--text-dim)' }}>{f.note}</p>}
+                    {f.hybridCarry && (
+                      <div className="mt-3 pt-3 text-[13px] leading-relaxed" style={{ borderTop: '1px solid var(--line-soft)' }}>
+                        <span className="font-semibold" style={{ color: 'var(--ok)' }}>Can stay as a Connect module.</span>{' '}
+                        <span style={{ color: 'var(--text-dim)' }}>
+                          If you&apos;re adopting Forge from an existing Connect app rather than rewriting, this is
+                          accepted in <span className="mono">connectModules</span> as{' '}
+                          {(f.hybridCarryKeys || []).map((k, n) => (
+                            <span key={k}>
+                              {n > 0 && ' / '}
+                              <span className="mono px-1 py-0.5 rounded" style={{ background: 'var(--surface-2)', color: 'var(--text)' }}>{k}</span>
+                            </span>
+                          ))}
+                          . The validator only checks the module <i>name</i> — the body must still satisfy the Connect
+                          schema, and this route is closed to brand-new Forge apps.
+                          {(f.hybridCarryDeprecated || []).length > 0 && (
+                            <> Note that {(f.hybridCarryDeprecated || []).join(', ')} {(f.hybridCarryDeprecated || []).length > 1 ? 'are' : 'is'} on the
+                            allowlist but long deprecated — accepted by the validator does not mean the surface still renders.</>
+                          )}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

@@ -10,6 +10,7 @@ import { DEMO_CONFLUENCE, DEMO_JIRA } from './demo-descriptors';
 const STATUS_VAR: Record<Status, string> = {
   direct: 'var(--ok)', caveat: 'var(--caveat)', preview: 'var(--preview)',
   redesign: 'var(--redesign)', none: 'var(--blocker)', unknown: 'var(--muted)',
+  obsolete: 'var(--obsolete)',
 };
 
 function Gauge({ score }: { score: number }) {

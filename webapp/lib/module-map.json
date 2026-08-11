@@ -2,7 +2,9 @@
   "meta": {
     "source": "https://developer.atlassian.com/platform/adopting-forge-from-connect/connect-forge-equivalences/connect-forge-capabilities-available/",
     "limitationsSource": "https://developer.atlassian.com/platform/adopting-forge-from-connect/limitations-and-differences/",
+    "hybridCarrySource": "SUPPORTED_MODULES in @forge/manifest (the allowlist ConnectModulesValidator checks connectModules keys against)",
     "retrieved": "2026-08-09",
+    "forgeManifestVersion": "13.3.0",
     "connectEndOfSupport": "2027-01-31",
     "connectUpdatesFrozenSince": "2026-03-01",
     "statusLegend": {
@@ -10,7 +12,8 @@
       "preview": "Forge equivalent exists but is in preview. Medium risk - API may change.",
       "caveat": "Equivalent exists but with documented behavioural differences. Medium risk.",
       "redesign": "No like-for-like module. Requires architectural change. High risk.",
-      "none": "No Forge equivalent documented. Blocker."
+      "none": "No Forge equivalent documented. Blocker.",
+      "obsolete": "Not a live Cloud Connect module. Nothing to migrate - delete it. No effort."
     }
   },
 
@@ -26,16 +29,55 @@
   },
 
   "absentFromEquivalenceTable": {
-    "_note": "These are real Connect modules that do NOT appear in Atlassian's published Connect/Forge equivalence table. Absence is not proof that no Forge equivalent exists - but in practice it means one is not documented, so each must be verified manually and treated as high risk until confirmed.",
+    "_note": "These are real, currently-documented Cloud Connect modules that do NOT appear in Atlassian's published Connect/Forge equivalence table. Absence is not proof that no Forge equivalent exists - but in practice it means one is not documented, so each must be verified manually and treated as high risk until confirmed. All four can still be carried as Connect modules by an app adopted from Connect - see connectModuleAllowlist and the caveats on it.",
     "webSections": "Groups web items in Connect. Forge has no section concept - grouping is implicit in the module hierarchy. Expect to restructure navigation.",
     "jiraReports": "Custom Jira reports. No documented Forge equivalent.",
     "jiraSearchRequestViews": "Custom rendering of search results (e.g. custom export formats). No documented Forge equivalent.",
-    "jiraProfileTabPanels": "Tabs on the user profile. No documented Forge equivalent; jira:personalSettingsPage (preview) is the closest surface but is not a like-for-like tab.",
-    "jiraVersionTabPanels": "Tabs on the version page. No documented Forge equivalent.",
-    "jiraComponentTabPanels": "Tabs on the component page. No documented Forge equivalent.",
-    "confluenceThemes": "Full Confluence theming. No documented Forge equivalent - this is typically a product-defining capability, so its absence can block a migration outright.",
-    "spaceViews": "Custom space views. No documented Forge equivalent.",
-    "profilePages": "Confluence user profile pages. No documented Forge equivalent."
+    "confluenceThemes": "Full Confluence theming. No documented Forge equivalent - this is typically a product-defining capability, so its absence can block a migration outright. Note that a theme's custom space experience is the 'spaceview' entry under this module's 'routes' object; it is not a separate module."
+  },
+
+  "notCloudConnectModules": {
+    "_note": "Names that look like Connect modules but are not live Jira/Confluence Cloud Connect modules today. Their absence from the equivalence table is correct rather than an omission - there is nothing to migrate. Verified against Atlassian's current Cloud module references and against SUPPORTED_MODULES in @forge/manifest, which rejects every one of these as 'invalid value in connectModules'.",
+    "spaceViews": "Not a module. A Confluence theme's custom space experience is the 'spaceview' key inside the 'routes' object of a confluenceThemes entry. Scope it as part of confluenceThemes.",
+    "profilePages": "Not documented as a Confluence Cloud Connect module. If your descriptor really contains this key, verify it against the current Confluence module reference before scoping - it may be a Server/DC module or a stale hand-written key.",
+    "jiraProfileTabPanels": "Deprecated 1 October 2017 and support has since been removed from Jira Cloud. Nothing to migrate - delete the module. If the app still needs user-scoped UI, build it as a general page linked from the user profile menu (jira:personalSettingsPage is the nearest Forge surface, but it is not a like-for-like tab).",
+    "jiraVersionTabPanels": "Not a Jira Cloud Connect module - version tab panels are a Jira Server/Data Center plugin module. Absent from the Cloud module reference and rejected by the Forge connectModules validator.",
+    "jiraComponentTabPanels": "Not a Jira Cloud Connect module - component tab panels are a Jira Server/Data Center plugin module. Absent from the Cloud module reference and rejected by the Forge connectModules validator."
+  },
+
+  "connectModuleAllowlist": {
+    "_note": "Connect module keys accepted in the connectModules section of a Forge manifest, taken from SUPPORTED_MODULES in @forge/manifest (the 'connect-' prefix is stripped, exactly as ConnectModulesValidator does before matching). THREE CAVEATS. (1) The validator checks the module NAME only - it never inspects the module body, which must still satisfy the Connect schema. (2) This route is only open to apps adopted from Connect: the manifest reference states 'Adding Connect Modules to a new Forge app is not supported.' (3) Presence here does not mean the surface still renders - jiraProjectTabPanels and jiraProjectAdminTabPanels are both on this list and both were deprecated on 1 October 2017.",
+    "keys": [
+      "confluence:adminPages", "confluence:blueprints", "confluence:cloudAppMigration", "confluence:configurePage",
+      "confluence:confluenceContentProperties", "confluence:confluenceThemes", "confluence:contentBylineItems",
+      "confluence:customContent", "confluence:dialogs", "confluence:dynamicContentMacros", "confluence:generalPages",
+      "confluence:keyboardShortcuts", "confluence:lifecycle", "confluence:postInstallPage", "confluence:publishConditions",
+      "confluence:spaceToolsTabs", "confluence:staticContentMacros", "confluence:translations", "confluence:webItems",
+      "confluence:webPanels", "confluence:webSections", "confluence:webhooks",
+      "jira:adminPages", "jira:assetPanels", "jira:automationActions", "jira:cloudAppMigration", "jira:configurePage",
+      "jira:dialogs", "jira:generalPages", "jira:jiraBackgroundScripts", "jira:jiraBuildInfoProvider",
+      "jira:jiraDashboardItems", "jira:jiraDeploymentGating", "jira:jiraDeploymentInfoProvider",
+      "jira:jiraDevOpsComponentProvider", "jira:jiraDevelopmentTool", "jira:jiraEntityProperties",
+      "jira:jiraFeatureFlagInfoProvider", "jira:jiraGlobalPermissions", "jira:jiraIssueContents",
+      "jira:jiraIssueContexts", "jira:jiraIssueFields", "jira:jiraIssueGlances", "jira:jiraIssueTabPanels",
+      "jira:jiraIssueTypes", "jira:jiraJqlFunctions", "jira:jiraOperationsInfoProvider",
+      "jira:jiraProjectAdminTabPanels", "jira:jiraProjectPages", "jira:jiraProjectPermissions",
+      "jira:jiraProjectTabPanels", "jira:jiraRemoteLinkInfoProvider", "jira:jiraReports",
+      "jira:jiraSearchRequestViews", "jira:jiraSecurityInfoProvider", "jira:jiraTimeTrackingProviders",
+      "jira:jiraWorkflowConditions", "jira:jiraWorkflowPostFunctions", "jira:jiraWorkflowValidators",
+      "jira:keyboardShortcuts", "jira:lifecycle", "jira:postInstallPage", "jira:serviceDeskOrganizationActions",
+      "jira:serviceDeskOrganizationPanels", "jira:serviceDeskPortalFooters", "jira:serviceDeskPortalHeaders",
+      "jira:serviceDeskPortalProfileActions", "jira:serviceDeskPortalProfilePanels",
+      "jira:serviceDeskPortalRequestCreatePropertyPanels", "jira:serviceDeskPortalRequestViewActions",
+      "jira:serviceDeskPortalRequestViewDetailsPanels", "jira:serviceDeskPortalRequestViewPanels",
+      "jira:serviceDeskPortalSubHeaders", "jira:serviceDeskPortalUserMenuActions", "jira:serviceDeskQueueGroups",
+      "jira:serviceDeskQueues", "jira:serviceDeskReportGroups", "jira:serviceDeskReports", "jira:translations",
+      "jira:webItems", "jira:webPanels", "jira:webSections", "jira:webhooks"
+    ],
+    "deprecatedButAccepted": {
+      "jira:jiraProjectTabPanels": "Deprecated 1 October 2017; the original location was phased out of Jira Cloud in March 2015.",
+      "jira:jiraProjectAdminTabPanels": "Deprecated 1 October 2017."
+    }
   },
 
   "platform": {

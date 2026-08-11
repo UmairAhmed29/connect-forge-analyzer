@@ -2,7 +2,7 @@
 // file runs in the CLI, the static build and this Next app. Hand-maintained: if you
 // change core.js's exports, update this too.
 
-export type Status = 'direct' | 'caveat' | 'preview' | 'redesign' | 'none' | 'unknown';
+export type Status = 'direct' | 'caveat' | 'preview' | 'redesign' | 'none' | 'unknown' | 'obsolete';
 
 export interface Finding {
   module: string;
@@ -13,6 +13,10 @@ export interface Finding {
   effortDays: number;
   dataMigration?: boolean;
   product?: string;
+  /** Whether an app adopted from Connect could keep this module under `connectModules`. */
+  hybridCarry?: boolean | null;
+  hybridCarryKeys?: string[];
+  hybridCarryDeprecated?: string[];
 }
 
 export interface GlobalRisk {
@@ -46,6 +50,8 @@ export interface Report {
     connectEndOfSupport: string;
     connectUpdatesFrozenSince: string;
     source: string;
+    forgeManifestVersion?: string;
+    hybridCarrySource?: string;
   };
 }
 

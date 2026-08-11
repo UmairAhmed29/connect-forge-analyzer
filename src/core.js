@@ -2,7 +2,7 @@
 // same code runs in the CLI and inside the generated single-file web page.
 // Every function takes MAP explicitly rather than importing it.
 
-const EFFORT_BY_STATUS = { direct: 0.5, caveat: 1.5, preview: 2, redesign: 5, none: 8, unknown: 3 };
+const EFFORT_BY_STATUS = { direct: 0.5, caveat: 1.5, preview: 2, redesign: 5, none: 8, unknown: 3, obsolete: 0 };
 const UI_SURCHARGE = 1.5;
 const BASE_OVERHEAD_DAYS = 5;
 const UI_BEARING = /page|panel|macro|dialog|glance|item|gadget|field|content|header|footer|banner|menu|action|tab/i;
@@ -12,7 +12,7 @@ const AMBIGUOUS = new Set([
   'dialogs', 'keyboardShortcuts', 'webItems', 'webPanels', 'webhooks',
 ]);
 
-export const ICON = { direct: '🟢', caveat: '🟡', preview: '🟠', redesign: '🔴', none: '⛔', unknown: '⚪' };
+export const ICON = { direct: '🟢', caveat: '🟡', preview: '🟠', redesign: '🔴', none: '⛔', unknown: '⚪', obsolete: '⚫' };
 export const LABEL = {
   direct: 'Direct equivalent',
   caveat: 'Equivalent with caveats',
@@ -20,8 +20,9 @@ export const LABEL = {
   redesign: 'Requires redesign',
   none: 'No equivalent',
   unknown: 'Unrecognised module',
+  obsolete: 'Not a live Cloud module',
 };
-export const ORDER = ['none', 'redesign', 'preview', 'caveat', 'unknown', 'direct'];
+export const ORDER = ['none', 'redesign', 'preview', 'caveat', 'unknown', 'obsolete', 'direct'];
 
 const toArray = (v) => (Array.isArray(v) ? v : v == null ? [] : [v]);
 
@@ -42,8 +43,33 @@ function detectProducts(MAP, descriptor) {
   return [...products];
 }
 
+// Whether an app ADOPTED FROM CONNECT could keep shipping this module as-is under
+// connectModules. This is a separate axis from "does a Forge equivalent exist" - a
+// module can be carryable and still have no Forge module, and vice versa. The check
+// mirrors ConnectModulesValidator, which matches the module NAME only.
+function carryInfo(MAP, rawName) {
+  const allow = MAP.connectModuleAllowlist;
+  if (!allow) return { hybridCarry: null, hybridCarryKeys: [] };
+  const name = MAP.aliases[rawName] || rawName;
+  const keys = allow.keys.filter((k) => k.slice(k.indexOf(':') + 1) === name);
+  return {
+    hybridCarry: keys.length > 0,
+    hybridCarryKeys: keys,
+    hybridCarryDeprecated: keys.filter((k) => allow.deprecatedButAccepted && allow.deprecatedButAccepted[k]),
+  };
+}
+
 function lookupModule(MAP, rawName, products) {
   const name = MAP.aliases[rawName] || rawName;
+
+  if (MAP.notCloudConnectModules && MAP.notCloudConnectModules[name]) {
+    return {
+      forge: null,
+      status: 'obsolete',
+      note: MAP.notCloudConnectModules[name],
+      product: products[0],
+    };
+  }
 
   for (const p of products) {
     if (MAP[p] && MAP[p][name]) return { ...MAP[p][name], product: p };
@@ -72,6 +98,7 @@ function locationFinding(MAP, kind, location, products, moduleKey) {
       return {
         module: `${kind}[${location}]`, key: moduleKey, forge,
         status: /preview/i.test(forge) ? 'preview' : 'direct', product: p,
+        ...carryInfo(MAP, kind),
       };
     }
   }
@@ -79,19 +106,24 @@ function locationFinding(MAP, kind, location, products, moduleKey) {
     module: `${kind}[${location}]`, key: moduleKey, forge: null, status: 'none',
     note: `Location "${location}" has no documented Forge equivalent. Requires a product decision on where this UI should live in Forge, or removal.`,
     product: products[0],
+    ...carryInfo(MAP, kind),
   };
 }
 
 function webhookFinding(MAP, event, products, moduleKey) {
   for (const p of [...products, 'jira', 'confluence']) {
     if (MAP.webhooks[p] && MAP.webhooks[p][event]) {
-      return { module: `webhooks[${event}]`, key: moduleKey, forge: MAP.webhooks[p][event], status: 'direct', product: p };
+      return {
+        module: `webhooks[${event}]`, key: moduleKey, forge: MAP.webhooks[p][event], status: 'direct', product: p,
+        ...carryInfo(MAP, 'webhooks'),
+      };
     }
   }
   return {
     module: `webhooks[${event}]`, key: moduleKey, forge: null, status: 'none',
     note: `Webhook "${event}" has no documented Forge product event. Verify against the current events reference before scoping.`,
     product: products[0],
+    ...carryInfo(MAP, 'webhooks'),
   };
 }
 
@@ -122,6 +154,7 @@ export function analyze(MAP, descriptor) {
         note: hit ? hit.note : `"${name}" is not in the equivalence table. It may be deprecated, product-specific, or newly added - verify manually against Atlassian's docs.`,
         dataMigration: hit ? !!hit.dataMigration : false,
         product: hit ? hit.product : products[0],
+        ...carryInfo(MAP, name),
       });
     }
   }
@@ -134,7 +167,8 @@ export function analyze(MAP, descriptor) {
   let moduleDays = 0;
   for (const f of findings) {
     let d = EFFORT_BY_STATUS[f.status] ?? EFFORT_BY_STATUS.unknown;
-    if (UI_BEARING.test(f.module)) d += UI_SURCHARGE;
+    // An obsolete module is deleted, not rebuilt, so it carries no UI cost either.
+    if (f.status !== 'obsolete' && UI_BEARING.test(f.module)) d += UI_SURCHARGE;
     moduleDays += d;
     f.effortDays = Number(d.toFixed(1));
   }
@@ -170,7 +204,9 @@ function blockerCeiling(n) {
 
 export function readiness(report) {
   const { summary, findings } = report;
-  const total = findings.length || 1;
+  // Obsolete modules are deleted rather than migrated, so they neither help nor
+  // hurt readiness - counting them as "fine" would inflate the score.
+  const total = findings.filter((f) => f.status !== 'obsolete').length || 1;
   const bad = (summary.none || 0) + (summary.redesign || 0);
   const mid = (summary.preview || 0) + (summary.caveat || 0) + (summary.unknown || 0);
   const proportional = 100 - (bad / total) * 70 - (mid / total) * 25;
@@ -205,6 +241,7 @@ export function toMarkdown(report) {
       out.push(`### ${f.module}${f.key ? ` \`${f.key}\`` : ''}`, '');
       out.push(`- **Forge target:** ${f.forge || '_none documented_'}`);
       if (f.note) out.push(`- **Why it matters:** ${f.note}`);
+      if (f.hybridCarry) out.push(`- **Adopted apps only:** can keep shipping as \`${f.hybridCarryKeys.join('` / `')}\` under \`connectModules\` — see the caveats below.`);
       out.push(`- **Estimated:** ${f.effortDays} days`, '');
     }
   }
@@ -215,7 +252,34 @@ export function toMarkdown(report) {
   }
   out.push('');
 
-  const noted = findings.filter((f) => f.note && f.status !== 'none' && f.status !== 'redesign');
+  const obsolete = findings.filter((f) => f.status === 'obsolete');
+  if (obsolete.length) {
+    out.push(`## ⚫ Nothing to migrate`, '');
+    out.push('These are not live Jira/Confluence Cloud Connect modules. They cost zero migration effort — delete them:', '');
+    for (const f of obsolete) out.push(`- **\`${f.module}\`** — ${f.note}`);
+    out.push('');
+  }
+
+  const carryable = findings.filter((f) => f.hybridCarry);
+  if (carryable.length) {
+    out.push(`## Modules an adopted app could keep as Connect`, '');
+    out.push('Separate question from "is there a Forge equivalent". These module names are accepted in the `connectModules` section of a Forge manifest, so a hybrid keeps working:', '');
+    const seen = new Set();
+    for (const f of carryable) {
+      const line = f.hybridCarryKeys.join(', ');
+      if (seen.has(line)) continue;
+      seen.add(line);
+      const stale = f.hybridCarryDeprecated || [];
+      out.push(`- \`${line}\`${stale.length ? ` — **accepted but deprecated** (${stale.join(', ')}); carrying it keeps the manifest valid, not the surface alive.` : ''}`);
+    }
+    out.push('');
+    out.push('**Three things this does not mean:**', '');
+    out.push('1. The validator checks the module **name** only — it never inspects the module body, which must still satisfy the Connect schema.');
+    out.push('2. This route is closed to apps not adopted from Connect. The manifest reference states: *"Adding Connect Modules to a new Forge app is not supported."*');
+    out.push('3. Acceptance does not mean the surface still renders — `jira:jiraProjectTabPanels` and `jira:jiraProjectAdminTabPanels` are both accepted and both were deprecated on 1 October 2017.', '');
+  }
+
+  const noted = findings.filter((f) => f.note && f.status !== 'none' && f.status !== 'redesign' && f.status !== 'obsolete');
   if (noted.length) {
     out.push(`## Behavioural differences to plan for`, '');
     for (const f of noted) out.push(`- **\`${f.module}\`** — ${f.note}`);
@@ -245,6 +309,9 @@ export function toMarkdown(report) {
   out.push('---', '');
   out.push(`Connect end of support: **${meta.connectEndOfSupport}**. Connect descriptor updates have been blocked since **${meta.connectUpdatesFrozenSince}** — apps still on Connect cannot ship changes.`, '');
   out.push(`Mapping data from Atlassian's Connect/Forge equivalences, retrieved ${meta.retrieved}.`);
+  if (meta.forgeManifestVersion) {
+    out.push(`\`connectModules\` acceptance checked against \`SUPPORTED_MODULES\` in \`@forge/manifest@${meta.forgeManifestVersion}\` — a versioned package, so re-check it against the version you build with.`);
+  }
   return out.join('\n');
 }
 

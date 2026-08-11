@@ -136,7 +136,9 @@ const MAP = {
   "meta": {
     "source": "https://developer.atlassian.com/platform/adopting-forge-from-connect/connect-forge-equivalences/connect-forge-capabilities-available/",
     "limitationsSource": "https://developer.atlassian.com/platform/adopting-forge-from-connect/limitations-and-differences/",
+    "hybridCarrySource": "SUPPORTED_MODULES in @forge/manifest (the allowlist ConnectModulesValidator checks connectModules keys against)",
     "retrieved": "2026-08-09",
+    "forgeManifestVersion": "13.3.0",
     "connectEndOfSupport": "2027-01-31",
     "connectUpdatesFrozenSince": "2026-03-01",
     "statusLegend": {
@@ -144,7 +146,8 @@ const MAP = {
       "preview": "Forge equivalent exists but is in preview. Medium risk - API may change.",
       "caveat": "Equivalent exists but with documented behavioural differences. Medium risk.",
       "redesign": "No like-for-like module. Requires architectural change. High risk.",
-      "none": "No Forge equivalent documented. Blocker."
+      "none": "No Forge equivalent documented. Blocker.",
+      "obsolete": "Not a live Cloud Connect module. Nothing to migrate - delete it. No effort."
     }
   },
 
@@ -160,16 +163,55 @@ const MAP = {
   },
 
   "absentFromEquivalenceTable": {
-    "_note": "These are real Connect modules that do NOT appear in Atlassian's published Connect/Forge equivalence table. Absence is not proof that no Forge equivalent exists - but in practice it means one is not documented, so each must be verified manually and treated as high risk until confirmed.",
+    "_note": "These are real, currently-documented Cloud Connect modules that do NOT appear in Atlassian's published Connect/Forge equivalence table. Absence is not proof that no Forge equivalent exists - but in practice it means one is not documented, so each must be verified manually and treated as high risk until confirmed. All four can still be carried as Connect modules by an app adopted from Connect - see connectModuleAllowlist and the caveats on it.",
     "webSections": "Groups web items in Connect. Forge has no section concept - grouping is implicit in the module hierarchy. Expect to restructure navigation.",
     "jiraReports": "Custom Jira reports. No documented Forge equivalent.",
     "jiraSearchRequestViews": "Custom rendering of search results (e.g. custom export formats). No documented Forge equivalent.",
-    "jiraProfileTabPanels": "Tabs on the user profile. No documented Forge equivalent; jira:personalSettingsPage (preview) is the closest surface but is not a like-for-like tab.",
-    "jiraVersionTabPanels": "Tabs on the version page. No documented Forge equivalent.",
-    "jiraComponentTabPanels": "Tabs on the component page. No documented Forge equivalent.",
-    "confluenceThemes": "Full Confluence theming. No documented Forge equivalent - this is typically a product-defining capability, so its absence can block a migration outright.",
-    "spaceViews": "Custom space views. No documented Forge equivalent.",
-    "profilePages": "Confluence user profile pages. No documented Forge equivalent."
+    "confluenceThemes": "Full Confluence theming. No documented Forge equivalent - this is typically a product-defining capability, so its absence can block a migration outright. Note that a theme's custom space experience is the 'spaceview' entry under this module's 'routes' object; it is not a separate module."
+  },
+
+  "notCloudConnectModules": {
+    "_note": "Names that look like Connect modules but are not live Jira/Confluence Cloud Connect modules today. Their absence from the equivalence table is correct rather than an omission - there is nothing to migrate. Verified against Atlassian's current Cloud module references and against SUPPORTED_MODULES in @forge/manifest, which rejects every one of these as 'invalid value in connectModules'.",
+    "spaceViews": "Not a module. A Confluence theme's custom space experience is the 'spaceview' key inside the 'routes' object of a confluenceThemes entry. Scope it as part of confluenceThemes.",
+    "profilePages": "Not documented as a Confluence Cloud Connect module. If your descriptor really contains this key, verify it against the current Confluence module reference before scoping - it may be a Server/DC module or a stale hand-written key.",
+    "jiraProfileTabPanels": "Deprecated 1 October 2017 and support has since been removed from Jira Cloud. Nothing to migrate - delete the module. If the app still needs user-scoped UI, build it as a general page linked from the user profile menu (jira:personalSettingsPage is the nearest Forge surface, but it is not a like-for-like tab).",
+    "jiraVersionTabPanels": "Not a Jira Cloud Connect module - version tab panels are a Jira Server/Data Center plugin module. Absent from the Cloud module reference and rejected by the Forge connectModules validator.",
+    "jiraComponentTabPanels": "Not a Jira Cloud Connect module - component tab panels are a Jira Server/Data Center plugin module. Absent from the Cloud module reference and rejected by the Forge connectModules validator."
+  },
+
+  "connectModuleAllowlist": {
+    "_note": "Connect module keys accepted in the connectModules section of a Forge manifest, taken from SUPPORTED_MODULES in @forge/manifest (the 'connect-' prefix is stripped, exactly as ConnectModulesValidator does before matching). THREE CAVEATS. (1) The validator checks the module NAME only - it never inspects the module body, which must still satisfy the Connect schema. (2) This route is only open to apps adopted from Connect: the manifest reference states 'Adding Connect Modules to a new Forge app is not supported.' (3) Presence here does not mean the surface still renders - jiraProjectTabPanels and jiraProjectAdminTabPanels are both on this list and both were deprecated on 1 October 2017.",
+    "keys": [
+      "confluence:adminPages", "confluence:blueprints", "confluence:cloudAppMigration", "confluence:configurePage",
+      "confluence:confluenceContentProperties", "confluence:confluenceThemes", "confluence:contentBylineItems",
+      "confluence:customContent", "confluence:dialogs", "confluence:dynamicContentMacros", "confluence:generalPages",
+      "confluence:keyboardShortcuts", "confluence:lifecycle", "confluence:postInstallPage", "confluence:publishConditions",
+      "confluence:spaceToolsTabs", "confluence:staticContentMacros", "confluence:translations", "confluence:webItems",
+      "confluence:webPanels", "confluence:webSections", "confluence:webhooks",
+      "jira:adminPages", "jira:assetPanels", "jira:automationActions", "jira:cloudAppMigration", "jira:configurePage",
+      "jira:dialogs", "jira:generalPages", "jira:jiraBackgroundScripts", "jira:jiraBuildInfoProvider",
+      "jira:jiraDashboardItems", "jira:jiraDeploymentGating", "jira:jiraDeploymentInfoProvider",
+      "jira:jiraDevOpsComponentProvider", "jira:jiraDevelopmentTool", "jira:jiraEntityProperties",
+      "jira:jiraFeatureFlagInfoProvider", "jira:jiraGlobalPermissions", "jira:jiraIssueContents",
+      "jira:jiraIssueContexts", "jira:jiraIssueFields", "jira:jiraIssueGlances", "jira:jiraIssueTabPanels",
+      "jira:jiraIssueTypes", "jira:jiraJqlFunctions", "jira:jiraOperationsInfoProvider",
+      "jira:jiraProjectAdminTabPanels", "jira:jiraProjectPages", "jira:jiraProjectPermissions",
+      "jira:jiraProjectTabPanels", "jira:jiraRemoteLinkInfoProvider", "jira:jiraReports",
+      "jira:jiraSearchRequestViews", "jira:jiraSecurityInfoProvider", "jira:jiraTimeTrackingProviders",
+      "jira:jiraWorkflowConditions", "jira:jiraWorkflowPostFunctions", "jira:jiraWorkflowValidators",
+      "jira:keyboardShortcuts", "jira:lifecycle", "jira:postInstallPage", "jira:serviceDeskOrganizationActions",
+      "jira:serviceDeskOrganizationPanels", "jira:serviceDeskPortalFooters", "jira:serviceDeskPortalHeaders",
+      "jira:serviceDeskPortalProfileActions", "jira:serviceDeskPortalProfilePanels",
+      "jira:serviceDeskPortalRequestCreatePropertyPanels", "jira:serviceDeskPortalRequestViewActions",
+      "jira:serviceDeskPortalRequestViewDetailsPanels", "jira:serviceDeskPortalRequestViewPanels",
+      "jira:serviceDeskPortalSubHeaders", "jira:serviceDeskPortalUserMenuActions", "jira:serviceDeskQueueGroups",
+      "jira:serviceDeskQueues", "jira:serviceDeskReportGroups", "jira:serviceDeskReports", "jira:translations",
+      "jira:webItems", "jira:webPanels", "jira:webSections", "jira:webhooks"
+    ],
+    "deprecatedButAccepted": {
+      "jira:jiraProjectTabPanels": "Deprecated 1 October 2017; the original location was phased out of Jira Cloud in March 2015.",
+      "jira:jiraProjectAdminTabPanels": "Deprecated 1 October 2017."
+    }
   },
 
   "platform": {
@@ -490,7 +532,7 @@ const MAP = {
 // same code runs in the CLI and inside the generated single-file web page.
 // Every function takes MAP explicitly rather than importing it.
 
-const EFFORT_BY_STATUS = { direct: 0.5, caveat: 1.5, preview: 2, redesign: 5, none: 8, unknown: 3 };
+const EFFORT_BY_STATUS = { direct: 0.5, caveat: 1.5, preview: 2, redesign: 5, none: 8, unknown: 3, obsolete: 0 };
 const UI_SURCHARGE = 1.5;
 const BASE_OVERHEAD_DAYS = 5;
 const UI_BEARING = /page|panel|macro|dialog|glance|item|gadget|field|content|header|footer|banner|menu|action|tab/i;
@@ -500,7 +542,7 @@ const AMBIGUOUS = new Set([
   'dialogs', 'keyboardShortcuts', 'webItems', 'webPanels', 'webhooks',
 ]);
 
-const ICON = { direct: '🟢', caveat: '🟡', preview: '🟠', redesign: '🔴', none: '⛔', unknown: '⚪' };
+const ICON = { direct: '🟢', caveat: '🟡', preview: '🟠', redesign: '🔴', none: '⛔', unknown: '⚪', obsolete: '⚫' };
 const LABEL = {
   direct: 'Direct equivalent',
   caveat: 'Equivalent with caveats',
@@ -508,8 +550,9 @@ const LABEL = {
   redesign: 'Requires redesign',
   none: 'No equivalent',
   unknown: 'Unrecognised module',
+  obsolete: 'Not a live Cloud module',
 };
-const ORDER = ['none', 'redesign', 'preview', 'caveat', 'unknown', 'direct'];
+const ORDER = ['none', 'redesign', 'preview', 'caveat', 'unknown', 'obsolete', 'direct'];
 
 const toArray = (v) => (Array.isArray(v) ? v : v == null ? [] : [v]);
 
@@ -530,8 +573,33 @@ function detectProducts(MAP, descriptor) {
   return [...products];
 }
 
+// Whether an app ADOPTED FROM CONNECT could keep shipping this module as-is under
+// connectModules. This is a separate axis from "does a Forge equivalent exist" - a
+// module can be carryable and still have no Forge module, and vice versa. The check
+// mirrors ConnectModulesValidator, which matches the module NAME only.
+function carryInfo(MAP, rawName) {
+  const allow = MAP.connectModuleAllowlist;
+  if (!allow) return { hybridCarry: null, hybridCarryKeys: [] };
+  const name = MAP.aliases[rawName] || rawName;
+  const keys = allow.keys.filter((k) => k.slice(k.indexOf(':') + 1) === name);
+  return {
+    hybridCarry: keys.length > 0,
+    hybridCarryKeys: keys,
+    hybridCarryDeprecated: keys.filter((k) => allow.deprecatedButAccepted && allow.deprecatedButAccepted[k]),
+  };
+}
+
 function lookupModule(MAP, rawName, products) {
   const name = MAP.aliases[rawName] || rawName;
+
+  if (MAP.notCloudConnectModules && MAP.notCloudConnectModules[name]) {
+    return {
+      forge: null,
+      status: 'obsolete',
+      note: MAP.notCloudConnectModules[name],
+      product: products[0],
+    };
+  }
 
   for (const p of products) {
     if (MAP[p] && MAP[p][name]) return { ...MAP[p][name], product: p };
@@ -560,6 +628,7 @@ function locationFinding(MAP, kind, location, products, moduleKey) {
       return {
         module: `${kind}[${location}]`, key: moduleKey, forge,
         status: /preview/i.test(forge) ? 'preview' : 'direct', product: p,
+        ...carryInfo(MAP, kind),
       };
     }
   }
@@ -567,19 +636,24 @@ function locationFinding(MAP, kind, location, products, moduleKey) {
     module: `${kind}[${location}]`, key: moduleKey, forge: null, status: 'none',
     note: `Location "${location}" has no documented Forge equivalent. Requires a product decision on where this UI should live in Forge, or removal.`,
     product: products[0],
+    ...carryInfo(MAP, kind),
   };
 }
 
 function webhookFinding(MAP, event, products, moduleKey) {
   for (const p of [...products, 'jira', 'confluence']) {
     if (MAP.webhooks[p] && MAP.webhooks[p][event]) {
-      return { module: `webhooks[${event}]`, key: moduleKey, forge: MAP.webhooks[p][event], status: 'direct', product: p };
+      return {
+        module: `webhooks[${event}]`, key: moduleKey, forge: MAP.webhooks[p][event], status: 'direct', product: p,
+        ...carryInfo(MAP, 'webhooks'),
+      };
     }
   }
   return {
     module: `webhooks[${event}]`, key: moduleKey, forge: null, status: 'none',
     note: `Webhook "${event}" has no documented Forge product event. Verify against the current events reference before scoping.`,
     product: products[0],
+    ...carryInfo(MAP, 'webhooks'),
   };
 }
 
@@ -610,6 +684,7 @@ function analyze(MAP, descriptor) {
         note: hit ? hit.note : `"${name}" is not in the equivalence table. It may be deprecated, product-specific, or newly added - verify manually against Atlassian's docs.`,
         dataMigration: hit ? !!hit.dataMigration : false,
         product: hit ? hit.product : products[0],
+        ...carryInfo(MAP, name),
       });
     }
   }
@@ -622,7 +697,8 @@ function analyze(MAP, descriptor) {
   let moduleDays = 0;
   for (const f of findings) {
     let d = EFFORT_BY_STATUS[f.status] ?? EFFORT_BY_STATUS.unknown;
-    if (UI_BEARING.test(f.module)) d += UI_SURCHARGE;
+    // An obsolete module is deleted, not rebuilt, so it carries no UI cost either.
+    if (f.status !== 'obsolete' && UI_BEARING.test(f.module)) d += UI_SURCHARGE;
     moduleDays += d;
     f.effortDays = Number(d.toFixed(1));
   }
@@ -658,7 +734,9 @@ function blockerCeiling(n) {
 
 function readiness(report) {
   const { summary, findings } = report;
-  const total = findings.length || 1;
+  // Obsolete modules are deleted rather than migrated, so they neither help nor
+  // hurt readiness - counting them as "fine" would inflate the score.
+  const total = findings.filter((f) => f.status !== 'obsolete').length || 1;
   const bad = (summary.none || 0) + (summary.redesign || 0);
   const mid = (summary.preview || 0) + (summary.caveat || 0) + (summary.unknown || 0);
   const proportional = 100 - (bad / total) * 70 - (mid / total) * 25;
@@ -693,6 +771,7 @@ function toMarkdown(report) {
       out.push(`### ${f.module}${f.key ? ` \`${f.key}\`` : ''}`, '');
       out.push(`- **Forge target:** ${f.forge || '_none documented_'}`);
       if (f.note) out.push(`- **Why it matters:** ${f.note}`);
+      if (f.hybridCarry) out.push(`- **Adopted apps only:** can keep shipping as \`${f.hybridCarryKeys.join('` / `')}\` under \`connectModules\` — see the caveats below.`);
       out.push(`- **Estimated:** ${f.effortDays} days`, '');
     }
   }
@@ -703,7 +782,34 @@ function toMarkdown(report) {
   }
   out.push('');
 
-  const noted = findings.filter((f) => f.note && f.status !== 'none' && f.status !== 'redesign');
+  const obsolete = findings.filter((f) => f.status === 'obsolete');
+  if (obsolete.length) {
+    out.push(`## ⚫ Nothing to migrate`, '');
+    out.push('These are not live Jira/Confluence Cloud Connect modules. They cost zero migration effort — delete them:', '');
+    for (const f of obsolete) out.push(`- **\`${f.module}\`** — ${f.note}`);
+    out.push('');
+  }
+
+  const carryable = findings.filter((f) => f.hybridCarry);
+  if (carryable.length) {
+    out.push(`## Modules an adopted app could keep as Connect`, '');
+    out.push('Separate question from "is there a Forge equivalent". These module names are accepted in the `connectModules` section of a Forge manifest, so a hybrid keeps working:', '');
+    const seen = new Set();
+    for (const f of carryable) {
+      const line = f.hybridCarryKeys.join(', ');
+      if (seen.has(line)) continue;
+      seen.add(line);
+      const stale = f.hybridCarryDeprecated || [];
+      out.push(`- \`${line}\`${stale.length ? ` — **accepted but deprecated** (${stale.join(', ')}); carrying it keeps the manifest valid, not the surface alive.` : ''}`);
+    }
+    out.push('');
+    out.push('**Three things this does not mean:**', '');
+    out.push('1. The validator checks the module **name** only — it never inspects the module body, which must still satisfy the Connect schema.');
+    out.push('2. This route is closed to apps not adopted from Connect. The manifest reference states: *"Adding Connect Modules to a new Forge app is not supported."*');
+    out.push('3. Acceptance does not mean the surface still renders — `jira:jiraProjectTabPanels` and `jira:jiraProjectAdminTabPanels` are both accepted and both were deprecated on 1 October 2017.', '');
+  }
+
+  const noted = findings.filter((f) => f.note && f.status !== 'none' && f.status !== 'redesign' && f.status !== 'obsolete');
   if (noted.length) {
     out.push(`## Behavioural differences to plan for`, '');
     for (const f of noted) out.push(`- **\`${f.module}\`** — ${f.note}`);
@@ -733,6 +839,9 @@ function toMarkdown(report) {
   out.push('---', '');
   out.push(`Connect end of support: **${meta.connectEndOfSupport}**. Connect descriptor updates have been blocked since **${meta.connectUpdatesFrozenSince}** — apps still on Connect cannot ship changes.`, '');
   out.push(`Mapping data from Atlassian's Connect/Forge equivalences, retrieved ${meta.retrieved}.`);
+  if (meta.forgeManifestVersion) {
+    out.push(`\`connectModules\` acceptance checked against \`SUPPORTED_MODULES\` in \`@forge/manifest@${meta.forgeManifestVersion}\` — a versioned package, so re-check it against the version you build with.`);
+  }
   return out.join('\n');
 }
 
